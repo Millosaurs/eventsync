@@ -238,26 +238,19 @@ export default function EventsPage() {
                                         </div>
                                     </div>
 
-                                    <div className="flex gap-2 mt-auto pt-2">
+                                    <div className=" gap-2 mt-auto pt-2 ">
                                         <Link
                                             href={`/events/${event.id}`}
-                                            className="flex-1"
+                                            className=""
                                         >
                                             <Button
                                                 variant="outline"
-                                                className="w-full"
+                                                className="w-full rounded-5"
                                             >
                                                 Learn More
                                             </Button>
                                         </Link>
-                                        <Link
-                                            href={`/events/${event.id}`}
-                                            className="flex-1"
-                                        >
-                                            <Button className="w-full">
-                                                Register
-                                            </Button>
-                                        </Link>
+                                        
                                     </div>
                                 </CardContent>
                             </Card>

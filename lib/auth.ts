@@ -4,7 +4,7 @@ import { admin } from "better-auth/plugins";
 import { db, schema } from "@/db";
 
 export const auth = betterAuth({
-    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+    baseURL: process.env.BETTER_AUTH_URL,
     database: drizzleAdapter(db, {
         provider: "pg",
         schema: {

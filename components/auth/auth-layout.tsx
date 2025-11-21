@@ -65,7 +65,7 @@ export function AuthLayout({ initialMode = "signin" }: AuthLayoutProps = {}) {
             <div className="w-full flex items-center justify-center p-6 lg:p-12 overflow-y-auto scrollbar-hide relative z-10">
                 <div className="w-full max-w-md">
                     {/* Logo & Header */}
-                    <div className="mb-8">
+                    {/* <div className="mb-8">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
                                 <Box className="w-7 h-7 text-primary-foreground" />
@@ -96,7 +96,7 @@ export function AuthLayout({ initialMode = "signin" }: AuthLayoutProps = {}) {
                                 </p>
                             </div>
                         )}
-                    </div>
+                    </div> */}
 
                     {/* Toggle between Sign In and Sign Up - Smooth Rounded */}
                     {signUpStep === "form" && (

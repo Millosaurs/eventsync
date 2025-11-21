@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/mood-toggle";
 import { useSession } from "@/lib/auth-client";
-import { LogIn, Loader2 } from "lucide-react";
+import { LogIn, Loader2, Box } from "lucide-react";
 
 export function Header() {
     const router = useRouter();
@@ -29,6 +29,9 @@ export function Header() {
                         href="/"
                         className="flex items-center gap-2 transition-all hover:opacity-80"
                     >
+                        <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+                            <Box className="w-7 h-7 text-primary-foreground" />
+                        </div>
                         <span className="text-lg font-bold tracking-tight">
                             EventSync
                         </span>

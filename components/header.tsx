@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/mood-toggle";
 import { useSession } from "@/lib/auth-client";
-import { LogIn, LayoutDashboard, Loader2, Calendar } from "lucide-react";
+import { LogIn, Loader2 } from "lucide-react";
 
 export function Header() {
     const router = useRouter();

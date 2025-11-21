@@ -1,0 +1,395 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { RegisterEventModal } from "@/components/modals/register-event-modal";
+import {
+    Calendar,
+    MapPin,
+    Users,
+    Clock,
+    ArrowLeft,
+    Share2,
+    Edit,
+} from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { PageDesignStorage } from "@/lib/utils/page-design-storage";
+import BlockRenderer from "@/components/page-builder/block-renderer";
+import { useSession } from "@/lib/auth-client";
+
+export default function EventDetailPage() {
+    const params = useParams();
+    const id = params.id as string;
+    const { data: session } = useSession();
+
+    // Mock event data - replace with actual API call using the UUID
+    const event = {
+        id: id,
+        title: "Tech Conference 2024",
+        description:
+            "Join us for the biggest tech conference of the year! Connect with industry leaders, learn about cutting-edge technologies, and network with fellow tech enthusiasts. This year's conference features keynotes from top speakers, hands-on workshops, and exciting product demonstrations.",
+        startDate: "Dec 30, 2024 at 9:00 AM",
+        endDate: "Dec 30, 2024 at 5:00 PM",
+        location: "San Francisco Convention Center",
+        maxCapacity: 500,
+        currentRegistrations: 342,
+        status: "published",
+        imageUrl: null,
+        manager: {
+            name: "Sarah Johnson",
+            email: "sarah@eventsync.com",
+        },
+        managerId: "mock-manager-id", // This should come from the actual event data
+    };
+
+    const registrationPercentage = Math.round(
+        (event.currentRegistrations / event.maxCapacity) * 100,
+    );
+
+    // Load page design from localStorage (client-side only to avoid hydration mismatch)
+    const [pageDesign] = useState<
+        ReturnType<typeof PageDesignStorage.loadDesign>
+    >(() => (id ? PageDesignStorage.loadDesign(id) : null));
+
+    // Check if user is manager or admin
+    const canEditPage =
+        session?.user &&
+        (session.user.role === "admin" || session.user.role === "manager");
+
+    return (
+        <div className="min-h-screen bg-muted/30">
+            <div className="container mx-auto px-4 py-8 space-y-6">
+                {/* Back Button */}
+                <Link href="/events">
+                    <Button variant="ghost" className="gap-2 my-2">
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to Events
+                    </Button>
+                </Link>
+
+                {/* Hero Section */}
+                <div className="relative">
+                    {event.imageUrl ? (
+                        <div className="h-64 md:h-96 rounded-xl overflow-hidden bg-muted relative">
+                            <Image
+                                src={event.imageUrl}
+                                alt={event.title}
+                                fill
+                                className="object-cover"
+                            />
+                        </div>
+                    ) : (
+                        <div className="h-64 md:h-96 rounded-xl bg-muted flex items-center justify-center">
+                            <Calendar className="w-16 h-16 text-muted-foreground" />
+                        </div>
+                    )}
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-3">
+                    {/* Main Content */}
+                    <div className="md:col-span-2 space-y-6">
+                        <div>
+                            <div className="flex items-start justify-between gap-4 mb-4">
+                                <div>
+                                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
+                                        {event.title}
+                                    </h1>
+                                    <Badge variant="outline">
+                                        {event.status === "published"
+                                            ? "Accepting Registrations"
+                                            : event.status}
+                                    </Badge>
+                                </div>
+                                <Button variant="outline" size="icon">
+                                    <Share2 className="w-4 h-4" />
+                                </Button>
+                            </div>
+
+                            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" />
+                                    <span>{event.startDate}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <MapPin className="w-4 h-4" />
+                                    <span>{event.location}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Users className="w-4 h-4" />
+                                    <span>
+                                        {event.currentRegistrations} /{" "}
+                                        {event.maxCapacity} registered
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        <div>
+                            <div className="flex items-center justify-between mb-3">
+                                <h2 className="text-xl font-semibold">
+                                    About This Event
+                                </h2>
+                                {canEditPage && (
+                                    <Link href={`/events/${id}/designer`}>
+                                        <Button variant="outline" size="sm">
+                                            <Edit className="w-4 h-4 mr-2" />
+                                            Customize Page
+                                        </Button>
+                                    </Link>
+                                )}
+                            </div>
+
+                            <div className="space-y-4">
+                                {pageDesign && pageDesign.blocks.length > 0 ? (
+                                    <>
+                                        {pageDesign.blocks
+                                            .sort((a, b) => a.order - b.order)
+                                            .map((block) => (
+                                                <BlockRenderer
+                                                    key={block.id}
+                                                    block={block}
+                                                    isPreview
+                                                />
+                                            ))}
+                                    </>
+                                ) : (
+                                    <p className="text-muted-foreground leading-relaxed">
+                                        {event.description}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        <div>
+                            <h2 className="text-xl font-semibold mb-3">
+                                Schedule
+                            </h2>
+                            <div className="space-y-4">
+                                <div className="flex gap-4">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[120px]">
+                                        <Clock className="w-4 h-4" />
+                                        <span>9:00 AM</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">
+                                            Registration & Welcome Coffee
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Check in and grab some refreshments
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[120px]">
+                                        <Clock className="w-4 h-4" />
+                                        <span>10:00 AM</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">
+                                            Keynote Presentation
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Opening keynote by industry leaders
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[120px]">
+                                        <Clock className="w-4 h-4" />
+                                        <span>12:00 PM</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">
+                                            Lunch Break
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Networking lunch with attendees
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[120px]">
+                                        <Clock className="w-4 h-4" />
+                                        <span>2:00 PM</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">
+                                            Workshops & Breakout Sessions
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Interactive hands-on workshops
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-[120px]">
+                                        <Clock className="w-4 h-4" />
+                                        <span>4:00 PM</span>
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">
+                                            Closing Remarks
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Wrap up and final thoughts
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Separator />
+
+                        <div>
+                            <h2 className="text-xl font-semibold mb-3">
+                                Event Organizer
+                            </h2>
+                            <Card>
+                                <CardContent className="pt-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <span className="text-lg font-medium">
+                                                {event.manager.name
+                                                    .split(" ")
+                                                    .map((n) => n[0])
+                                                    .join("")}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <p className="font-medium">
+                                                {event.manager.name}
+                                            </p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Event Manager
+                                            </p>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+
+                    {/* Sidebar */}
+                    <div className="space-y-6">
+                        <Card className="sticky top-4">
+                            <CardHeader>
+                                <CardTitle>Registration</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <div className="flex items-center justify-between text-sm mb-2">
+                                        <span className="text-muted-foreground">
+                                            Capacity
+                                        </span>
+                                        <span className="font-medium">
+                                            {registrationPercentage}% filled
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-muted rounded-full h-2">
+                                        <div
+                                            className="bg-primary h-2 rounded-full transition-all"
+                                            style={{
+                                                width: `${registrationPercentage}%`,
+                                            }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        {event.maxCapacity -
+                                            event.currentRegistrations}{" "}
+                                        spots remaining
+                                    </p>
+                                </div>
+
+                                <Separator />
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-muted-foreground">
+                                            Price
+                                        </span>
+                                        <span className="font-semibold text-lg">
+                                            Free
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <RegisterEventModal
+                                    eventId={event.id}
+                                    eventTitle={event.title}
+                                    eventDate={event.startDate}
+                                    eventLocation={event.location}
+                                    trigger={
+                                        <button className="w-full relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border bg-primary text-primary-foreground px-4 py-2.5 text-base font-medium shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                            Register Now
+                                        </button>
+                                    }
+                                />
+
+                                <p className="text-xs text-center text-muted-foreground">
+                                    Registration confirmation will be sent to
+                                    your email
+                                </p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">
+                                    Event Details
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3 text-sm">
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Start Date
+                                    </p>
+                                    <p className="font-medium">
+                                        {event.startDate}
+                                    </p>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        End Date
+                                    </p>
+                                    <p className="font-medium">
+                                        {event.endDate}
+                                    </p>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Location
+                                    </p>
+                                    <p className="font-medium">
+                                        {event.location}
+                                    </p>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Category
+                                    </p>
+                                    <p className="font-medium">Technology</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

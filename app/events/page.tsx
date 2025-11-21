@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
     Card,
     CardContent,
@@ -17,134 +17,136 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Calendar, MapPin, Users, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, MapPin, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function EventsPage() {
-    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("all");
 
+    // Mock events data - replace with actual API call
     const events = [
         {
-            id: 1,
-            name: "Tech Talk: AI & Future",
-            club: "Computer Club",
-            category: "Technical",
-            date: "Dec 22, 2024",
-            time: "3:00 PM - 5:00 PM",
-            location: "Auditorium Hall",
-            attendees: 120,
-            maxAttendees: 150,
+            id: "550e8400-e29b-41d4-a716-446655440001",
+            title: "Tech Conference 2024",
             description:
-                "Explore the latest trends in AI and machine learning.",
+                "Join us for the biggest tech conference of the year! Connect with industry leaders and learn about cutting-edge technologies.",
+            category: "Technology",
+            date: "Dec 30, 2024",
+            time: "9:00 AM - 5:00 PM",
+            location: "San Francisco Convention Center",
+            registered: 342,
+            capacity: 500,
+            status: "published",
         },
         {
-            id: 2,
-            name: "Cultural Night",
-            club: "Arts Club",
-            category: "Cultural",
+            id: "550e8400-e29b-41d4-a716-446655440002",
+            title: "Design Workshop",
+            description:
+                "Learn the fundamentals of modern UI/UX design from industry experts. Hands-on workshop with real projects.",
+            category: "Design",
             date: "Dec 25, 2024",
-            time: "6:00 PM - 9:00 PM",
-            location: "Main Ground",
-            attendees: 85,
-            maxAttendees: 200,
-            description:
-                "An evening of music, dance, and cultural performances.",
+            time: "2:00 PM - 6:00 PM",
+            location: "Design Studio Downtown",
+            registered: 32,
+            capacity: 50,
+            status: "published",
         },
         {
-            id: 3,
-            name: "Robotics Workshop",
-            club: "Mech Club",
-            category: "Technical",
+            id: "550e8400-e29b-41d4-a716-446655440003",
+            title: "Startup Pitch Event",
+            description:
+                "Present your startup ideas to investors and mentors. Get valuable feedback and potential funding opportunities.",
+            category: "Business",
             date: "Dec 28, 2024",
             time: "10:00 AM - 4:00 PM",
-            location: "Lab 3",
-            attendees: 60,
-            maxAttendees: 80,
-            description: "Hands-on workshop on building autonomous robots.",
+            location: "Innovation Hub",
+            registered: 45,
+            capacity: 100,
+            status: "published",
         },
         {
-            id: 4,
-            name: "Photography Walk",
-            club: "Media Club",
-            category: "Arts",
-            date: "Jan 2, 2025",
-            time: "7:00 AM - 10:00 AM",
-            location: "Campus Tour",
-            attendees: 42,
-            maxAttendees: 50,
-            description: "Capture the beauty of campus at sunrise.",
-        },
-        {
-            id: 5,
-            name: "Startup Pitching",
-            club: "Entrepreneurship Cell",
-            category: "Business",
+            id: "550e8400-e29b-41d4-a716-446655440004",
+            title: "Networking Mixer",
+            description:
+                "Connect with professionals from various industries. Expand your network and explore new opportunities.",
+            category: "Networking",
             date: "Jan 5, 2025",
-            time: "2:00 PM - 6:00 PM",
-            location: "Conference Room",
-            attendees: 90,
-            maxAttendees: 100,
-            description: "Present your startup ideas to investors and mentors.",
+            time: "6:00 PM - 9:00 PM",
+            location: "Downtown Event Space",
+            registered: 78,
+            capacity: 150,
+            status: "published",
         },
         {
-            id: 6,
-            name: "Sports Tournament",
-            club: "Sports Committee",
-            category: "Sports",
-            date: "Jan 8, 2025",
-            time: "9:00 AM - 5:00 PM",
-            location: "Sports Complex",
-            attendees: 150,
-            maxAttendees: 200,
-            description: "Annual inter-department sports competition.",
+            id: "550e8400-e29b-41d4-a716-446655440005",
+            title: "AI & ML Summit",
+            description:
+                "Explore the latest trends in artificial intelligence and machine learning. Featuring keynotes from top researchers.",
+            category: "Technology",
+            date: "Jan 10, 2025",
+            time: "9:00 AM - 6:00 PM",
+            location: "Tech Park Convention Hall",
+            registered: 189,
+            capacity: 300,
+            status: "published",
+        },
+        {
+            id: "550e8400-e29b-41d4-a716-446655440006",
+            title: "Creative Coding Workshop",
+            description:
+                "Merge art and code in this unique workshop. Create interactive visual experiences using modern web technologies.",
+            category: "Technology",
+            date: "Jan 15, 2025",
+            time: "1:00 PM - 5:00 PM",
+            location: "Creative Space Lab",
+            registered: 28,
+            capacity: 40,
+            status: "published",
         },
     ];
 
     const categories = [
         "all",
-        "Technical",
-        "Cultural",
-        "Arts",
+        "Technology",
+        "Design",
         "Business",
-        "Sports",
+        "Networking",
     ];
 
     const filteredEvents = events.filter((event) => {
         const matchesSearch =
-            event.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            event.club.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            event.description.toLowerCase().includes(searchQuery.toLowerCase());
+            event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            event.description
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase()) ||
+            event.location.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesCategory =
             selectedCategory === "all" || event.category === selectedCategory;
         return matchesSearch && matchesCategory;
     });
 
-    const handleNavigateToEvent = (eventId: number) => {
-        router.push(`/events/${eventId}`);
-    };
-
     return (
-        <div className="relative min-h-screen">
-            {/* Content */}
-            <div className="relative flex-1 space-y-6 p-8 pt-6">
-                <div className="flex flex-col space-y-2">
-                    <h2 className="text-3xl font-bold tracking-tight">
+        <div className="min-h-screen bg-muted/30">
+            <div className="container mx-auto px-4 py-8 space-y-6">
+                {/* Header */}
+                <div className="space-y-2">
+                    <h1 className="text-3xl font-bold tracking-tight">
                         Browse Events
-                    </h2>
+                    </h1>
                     <p className="text-muted-foreground">
-                        Discover and register for upcoming college events
+                        Discover and register for upcoming events
                     </p>
                 </div>
 
-                {/* Search and Filter Section */}
+                {/* Search and Filter */}
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="Search events, clubs, or keywords..."
-                            className="pl-10 backdrop-blur-sm bg-background/95"
+                            placeholder="Search events..."
+                            className="pl-10"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -153,13 +155,15 @@ export default function EventsPage() {
                         value={selectedCategory}
                         onValueChange={setSelectedCategory}
                     >
-                        <SelectTrigger className="w-[140px] backdrop-blur-sm bg-background/95">
+                        <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                             {categories.map((category) => (
                                 <SelectItem key={category} value={category}>
-                                    {category === "all" ? "All" : category}
+                                    {category === "all"
+                                        ? "All Categories"
+                                        : category}
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -168,64 +172,97 @@ export default function EventsPage() {
 
                 {/* Events Grid */}
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredEvents.map((event) => (
-                        <Card
-                            key={event.id}
-                            className="backdrop-blur-sm bg-background/95 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg hover:shadow-blue-500/20 cursor-pointer"
-                        >
-                            <CardHeader>
-                                <div className="flex items-start justify-between">
-                                    <div className="space-y-1">
-                                        <CardTitle className="text-xl">
-                                            {event.name}
+                    {filteredEvents.map((event) => {
+                        const percentage = Math.round(
+                            (event.registered / event.capacity) * 100,
+                        );
+                        const spotsLeft = event.capacity - event.registered;
+
+                        return (
+                            <Card
+                                key={event.id}
+                                className="flex flex-col hover:shadow-lg transition-all"
+                            >
+                                <CardHeader>
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                        <CardTitle className="text-xl line-clamp-2">
+                                            {event.title}
                                         </CardTitle>
-                                        <CardDescription className="text-sm">
-                                            {event.club}
-                                        </CardDescription>
+                                        <Badge variant="outline">
+                                            {event.category}
+                                        </Badge>
                                     </div>
-                                    <span className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                                        {event.category}
-                                    </span>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <p className="text-sm text-muted-foreground">
-                                    {event.description}
-                                </p>
-                                <div className="space-y-2">
-                                    <div className="flex items-center text-sm">
-                                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                                        <span>
-                                            {event.date} • {event.time}
-                                        </span>
+                                    <CardDescription className="line-clamp-2">
+                                        {event.description}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1 flex flex-col gap-4">
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Calendar className="h-4 w-4" />
+                                            <span>
+                                                {event.date} • {event.time}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <MapPin className="h-4 w-4" />
+                                            <span className="line-clamp-1">
+                                                {event.location}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-muted-foreground">
+                                            <Users className="h-4 w-4" />
+                                            <span>
+                                                {event.registered} /{" "}
+                                                {event.capacity} registered
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center text-sm">
-                                        <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                                        <span>{event.location}</span>
+
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between text-xs">
+                                            <span className="text-muted-foreground">
+                                                {percentage}% filled
+                                            </span>
+                                            <span className="font-medium">
+                                                {spotsLeft} spots left
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-muted rounded-full h-1.5">
+                                            <div
+                                                className="bg-primary h-1.5 rounded-full transition-all"
+                                                style={{
+                                                    width: `${percentage}%`,
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        className="flex-1"
-                                        onClick={() =>
-                                            handleNavigateToEvent(event.id)
-                                        }
-                                    >
-                                        Learn More
-                                    </Button>
-                                    <Button
-                                        className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
-                                        onClick={() =>
-                                            handleNavigateToEvent(event.id)
-                                        }
-                                    >
-                                        Register Now
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+
+                                    <div className="flex gap-2 mt-auto pt-2">
+                                        <Link
+                                            href={`/events/${event.id}`}
+                                            className="flex-1"
+                                        >
+                                            <Button
+                                                variant="outline"
+                                                className="w-full"
+                                            >
+                                                Learn More
+                                            </Button>
+                                        </Link>
+                                        <Link
+                                            href={`/events/${event.id}`}
+                                            className="flex-1"
+                                        >
+                                            <Button className="w-full">
+                                                Register
+                                            </Button>
+                                        </Link>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
 
                 {filteredEvents.length === 0 && (

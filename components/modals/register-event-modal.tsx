@@ -23,7 +23,9 @@ interface RegisterEventModalProps {
     eventTitle: string;
     eventDate: string;
     eventLocation?: string;
-    trigger?: React.ReactNode;
+    trigger?:
+        | React.ReactElement
+        | ((props: React.HTMLAttributes<HTMLElement>) => React.ReactElement);
 }
 
 export function RegisterEventModal({
@@ -75,7 +77,11 @@ export function RegisterEventModal({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             {trigger ? (
-                <DialogTrigger render={trigger} />
+                <DialogTrigger
+                    render={(props) =>
+                        typeof trigger === "function" ? trigger(props) : trigger
+                    }
+                />
             ) : (
                 <DialogTrigger>
                     <Button className="gap-2">

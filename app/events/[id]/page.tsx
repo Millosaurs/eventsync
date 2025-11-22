@@ -15,51 +15,140 @@ import {
     ArrowLeft,
     Share2,
     Edit,
+    Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageDesignStorage } from "@/lib/utils/page-design-storage";
 import BlockRenderer from "@/components/page-builder/block-renderer";
 import { useSession } from "@/lib/auth-client";
+
+interface EventData {
+    id: string;
+    title: string;
+    description: string;
+    imageUrl: string | null;
+    startDate: string;
+    endDate: string;
+    location: string;
+    maxCapacity: number | null;
+    registrationDeadline: string;
+    status: string;
+    managerId: string;
+    teamId: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface ApiResponse {
+    success: boolean;
+    data: EventData | null;
+    message: string;
+    error?: string;
+}
 
 export default function EventDetailPage() {
     const params = useParams();
     const id = params.id as string;
     const { data: session } = useSession();
 
-    // Mock event data - replace with actual API call using the UUID
-    const event = {
-        id: id,
-        title: "Tech Conference 2024",
-        description:
-            "Join us for the biggest tech conference of the year! Connect with industry leaders, learn about cutting-edge technologies, and network with fellow tech enthusiasts. This year's conference features keynotes from top speakers, hands-on workshops, and exciting product demonstrations.",
-        startDate: "Dec 30, 2024 at 9:00 AM",
-        endDate: "Dec 30, 2024 at 5:00 PM",
-        location: "San Francisco Convention Center",
-        maxCapacity: 500,
-        currentRegistrations: 342,
-        status: "published",
-        imageUrl: null,
-        manager: {
-            name: "Sarah Johnson",
-            email: "sarah@eventsync.com",
-        },
-        managerId: "mock-manager-id", // This should come from the actual event data
+    const [event, setEvent] = useState<EventData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [pageDesign, setPageDesign] =
+        useState<ReturnType<typeof PageDesignStorage.loadDesign>>(null);
+
+    useEffect(() => {
+        if (id) {
+            fetchEvent();
+            // Load page design from localStorage
+            setPageDesign(PageDesignStorage.loadDesign(id));
+        }
+    }, [id]);
+
+    const fetchEvent = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const response = await fetch(`/api/events/${id}`);
+            const data: ApiResponse = await response.json();
+
+            if (data.success && data.data) {
+                setEvent(data.data);
+            } else {
+                setError(data.message || "Failed to fetch event");
+            }
+        } catch (err) {
+            setError("An error occurred while fetching event details");
+            console.error("Error fetching event:", err);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const registrationPercentage = Math.round(
-        (event.currentRegistrations / event.maxCapacity) * 100,
-    );
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        });
+    };
 
-    // Load page design from localStorage (client-side only to avoid hydration mismatch)
-    const [pageDesign] = useState<
-        ReturnType<typeof PageDesignStorage.loadDesign>
-    >(() => (id ? PageDesignStorage.loadDesign(id) : null));
+    const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+        });
+    };
+
+    const formatDateTime = (dateString: string) => {
+        return `${formatDate(dateString)} at ${formatTime(dateString)}`;
+    };
+
+    // Mock registration count - this should come from an API
+    const currentRegistrations = 0;
+    const registrationPercentage = event?.maxCapacity
+        ? Math.round((currentRegistrations / event.maxCapacity) * 100)
+        : 0;
 
     // Check if user is manager or admin
     const canEditPage =
         session?.user &&
         (session.user.role === "admin" || session.user.role === "manager");
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-muted/30 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (error || !event) {
+        return (
+            <div className="min-h-screen bg-muted/30">
+                <div className="container mx-auto px-4 py-8">
+                    <Link href="/events">
+                        <Button variant="ghost" className="gap-2 my-2">
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Events
+                        </Button>
+                    </Link>
+                    <div className="text-center py-12">
+                        <p className="text-destructive text-lg mb-4">
+                            {error || "Event not found"}
+                        </p>
+                        <Button onClick={fetchEvent} variant="outline">
+                            Try Again
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-muted/30">
@@ -113,19 +202,23 @@ export default function EventDetailPage() {
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-2">
                                     <Calendar className="w-4 h-4" />
-                                    <span>{event.startDate}</span>
+                                    <span>
+                                        {formatDateTime(event.startDate)}
+                                    </span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <MapPin className="w-4 h-4" />
                                     <span>{event.location}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Users className="w-4 h-4" />
-                                    <span>
-                                        {event.currentRegistrations} /{" "}
-                                        {event.maxCapacity} registered
-                                    </span>
-                                </div>
+                                {event.maxCapacity && (
+                                    <div className="flex items-center gap-2">
+                                        <Users className="w-4 h-4" />
+                                        <span>
+                                            {currentRegistrations} /{" "}
+                                            {event.maxCapacity} registered
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -262,18 +355,20 @@ export default function EventDetailPage() {
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                                             <span className="text-lg font-medium">
-                                                {event.manager.name
-                                                    .split(" ")
-                                                    .map((n) => n[0])
-                                                    .join("")}
+                                                EM
                                             </span>
                                         </div>
                                         <div>
                                             <p className="font-medium">
-                                                {event.manager.name}
+                                                Event Manager
                                             </p>
                                             <p className="text-sm text-muted-foreground">
-                                                Event Manager
+                                                Manager ID:{" "}
+                                                {event.managerId.substring(
+                                                    0,
+                                                    8,
+                                                )}
+                                                ...
                                             </p>
                                         </div>
                                     </div>
@@ -307,9 +402,13 @@ export default function EventDetailPage() {
                                         />
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-2">
-                                        {event.maxCapacity -
-                                            event.currentRegistrations}{" "}
-                                        spots remaining
+                                        {event.maxCapacity
+                                            ? event.maxCapacity -
+                                              currentRegistrations
+                                            : "Unlimited"}{" "}
+                                        {event.maxCapacity
+                                            ? "spots remaining"
+                                            : "capacity"}
                                     </p>
                                 </div>
 
@@ -329,11 +428,20 @@ export default function EventDetailPage() {
                                 <RegisterEventModal
                                     eventId={event.id}
                                     eventTitle={event.title}
-                                    eventDate={event.startDate}
+                                    eventDate={formatDateTime(event.startDate)}
                                     eventLocation={event.location}
                                     trigger={
-                                        <button className="w-full relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border bg-primary text-primary-foreground px-4 py-2.5 text-base font-medium shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                                            Register Now
+                                        <button
+                                            className="w-full relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border bg-primary text-primary-foreground px-4 py-2.5 text-base font-medium shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={
+                                                event.status !== "published"
+                                            }
+                                        >
+                                            {event.status === "published"
+                                                ? "Register Now"
+                                                : event.status === "cancelled"
+                                                  ? "Event Cancelled"
+                                                  : "Registration Closed"}
                                         </button>
                                     }
                                 />
@@ -357,7 +465,7 @@ export default function EventDetailPage() {
                                         Start Date
                                     </p>
                                     <p className="font-medium">
-                                        {event.startDate}
+                                        {formatDateTime(event.startDate)}
                                     </p>
                                 </div>
                                 <Separator />
@@ -366,7 +474,7 @@ export default function EventDetailPage() {
                                         End Date
                                     </p>
                                     <p className="font-medium">
-                                        {event.endDate}
+                                        {formatDateTime(event.endDate)}
                                     </p>
                                 </div>
                                 <Separator />
@@ -381,9 +489,30 @@ export default function EventDetailPage() {
                                 <Separator />
                                 <div>
                                     <p className="text-muted-foreground">
-                                        Category
+                                        Status
                                     </p>
-                                    <p className="font-medium">Technology</p>
+                                    <Badge
+                                        variant={
+                                            event.status === "published"
+                                                ? "default"
+                                                : event.status === "cancelled"
+                                                  ? "destructive"
+                                                  : "secondary"
+                                        }
+                                    >
+                                        {event.status}
+                                    </Badge>
+                                </div>
+                                <Separator />
+                                <div>
+                                    <p className="text-muted-foreground">
+                                        Registration Deadline
+                                    </p>
+                                    <p className="font-medium">
+                                        {formatDateTime(
+                                            event.registrationDeadline,
+                                        )}
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>

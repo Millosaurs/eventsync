@@ -10,6 +10,7 @@ import {
     integer,
     decimal,
 } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 
 export const verification = pgTable("verification", {
     id: text().primaryKey().notNull(),
@@ -209,3 +210,45 @@ export const transaction = pgTable(
         }).onDelete("cascade"),
     ],
 );
+
+export const managerApplications = pgTable("manager_applications", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+        .notNull()
+        .references(() => user.id, { onDelete: "cascade" }),
+    organizationName: text("organization_name").notNull(),
+    organizationType: text("organization_type").notNull(),
+    contactPhone: text("contact_phone").notNull(),
+    website: text("website"),
+    description: text("description").notNull(),
+    experience: text("experience").notNull(),
+    status: text("status").default("pending").notNull(), // pending, approved, rejected
+    adminNotes: text("admin_notes"),
+    reviewedBy: text("reviewed_by").references(() => user.id),
+    reviewedAt: timestamp("reviewed_at", { mode: "string" }),
+    createdAt: timestamp("created_at", { mode: "string" })
+        .defaultNow()
+        .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "string" })
+        .defaultNow()
+        .notNull(),
+});
+
+// Relations
+export const managerApplicationsRelations = relations(
+    managerApplications,
+    ({ one }) => ({
+        user: one(user, {
+            fields: [managerApplications.userId],
+            references: [user.id],
+        }),
+        reviewer: one(user, {
+            fields: [managerApplications.reviewedBy],
+            references: [user.id],
+        }),
+    }),
+);
+
+export const userRelations = relations(user, ({ many }) => ({
+    managerApplications: many(managerApplications),
+}));

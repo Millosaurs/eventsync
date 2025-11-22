@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
     Card,
@@ -18,113 +18,133 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Search, Users } from "lucide-react";
+import { Calendar, MapPin, Search, Users, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+interface Event {
+    id: string;
+    title: string;
+    description: string;
+    imageUrl: string | null;
+    startDate: string;
+    endDate: string;
+    location: string;
+    maxCapacity: number | null;
+    registrationDeadline: string;
+    status: string;
+    managerId: string;
+    teamId: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface ApiResponse {
+    success: boolean;
+    data: {
+        events: Event[];
+        pagination: {
+            page: number;
+            limit: number;
+            total: number;
+            totalPages: number;
+            hasMore: boolean;
+        };
+    };
+    message: string;
+}
 
 export default function EventsPage() {
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedCategory, setSelectedCategory] = useState("all");
+    const [selectedStatus, setSelectedStatus] = useState("all");
+    const [events, setEvents] = useState<Event[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
 
-    // Mock events data - replace with actual API call
-    const events = [
-        {
-            id: "550e8400-e29b-41d4-a716-446655440001",
-            title: "Tech Conference 2024",
-            description:
-                "Join us for the biggest tech conference of the year! Connect with industry leaders and learn about cutting-edge technologies.",
-            category: "Technology",
-            date: "Dec 30, 2024",
-            time: "9:00 AM - 5:00 PM",
-            location: "San Francisco Convention Center",
-            registered: 342,
-            capacity: 500,
-            status: "published",
-        },
-        {
-            id: "550e8400-e29b-41d4-a716-446655440002",
-            title: "Design Workshop",
-            description:
-                "Learn the fundamentals of modern UI/UX design from industry experts. Hands-on workshop with real projects.",
-            category: "Design",
-            date: "Dec 25, 2024",
-            time: "2:00 PM - 6:00 PM",
-            location: "Design Studio Downtown",
-            registered: 32,
-            capacity: 50,
-            status: "published",
-        },
-        {
-            id: "550e8400-e29b-41d4-a716-446655440003",
-            title: "Startup Pitch Event",
-            description:
-                "Present your startup ideas to investors and mentors. Get valuable feedback and potential funding opportunities.",
-            category: "Business",
-            date: "Dec 28, 2024",
-            time: "10:00 AM - 4:00 PM",
-            location: "Innovation Hub",
-            registered: 45,
-            capacity: 100,
-            status: "published",
-        },
-        {
-            id: "550e8400-e29b-41d4-a716-446655440004",
-            title: "Networking Mixer",
-            description:
-                "Connect with professionals from various industries. Expand your network and explore new opportunities.",
-            category: "Networking",
-            date: "Jan 5, 2025",
-            time: "6:00 PM - 9:00 PM",
-            location: "Downtown Event Space",
-            registered: 78,
-            capacity: 150,
-            status: "published",
-        },
-        {
-            id: "550e8400-e29b-41d4-a716-446655440005",
-            title: "AI & ML Summit",
-            description:
-                "Explore the latest trends in artificial intelligence and machine learning. Featuring keynotes from top researchers.",
-            category: "Technology",
-            date: "Jan 10, 2025",
-            time: "9:00 AM - 6:00 PM",
-            location: "Tech Park Convention Hall",
-            registered: 189,
-            capacity: 300,
-            status: "published",
-        },
-        {
-            id: "550e8400-e29b-41d4-a716-446655440006",
-            title: "Creative Coding Workshop",
-            description:
-                "Merge art and code in this unique workshop. Create interactive visual experiences using modern web technologies.",
-            category: "Technology",
-            date: "Jan 15, 2025",
-            time: "1:00 PM - 5:00 PM",
-            location: "Creative Space Lab",
-            registered: 28,
-            capacity: 40,
-            status: "published",
-        },
-    ];
+    useEffect(() => {
+        fetchEvents();
+    }, [page, selectedStatus]);
 
-    const categories = [
-        "all",
-        "Technology",
-        "Design",
-        "Business",
-        "Networking",
+    const fetchEvents = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const params = new URLSearchParams({
+                page: page.toString(),
+                limit: "12",
+                sortBy: "startDate",
+                sortOrder: "asc",
+                upcoming: "true",
+            });
+
+            if (selectedStatus !== "all") {
+                params.append("status", selectedStatus);
+            }
+
+            if (searchQuery.trim()) {
+                params.append("search", searchQuery.trim());
+            }
+
+            const response = await fetch(`/api/events/list?${params}`);
+            const data: ApiResponse = await response.json();
+
+            if (data.success) {
+                setEvents(data.data.events);
+                setTotalPages(data.data.pagination.totalPages);
+            } else {
+                setError(data.message || "Failed to fetch events");
+            }
+        } catch (err) {
+            setError("An error occurred while fetching events");
+            console.error("Error fetching events:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSearch = () => {
+        setPage(1);
+        fetchEvents();
+    };
+
+    const formatDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+        });
+    };
+
+    const formatTime = (startDate: string, endDate: string) => {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        return `${start.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+        })} - ${end.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+        })}`;
+    };
+
+    const statusOptions = [
+        { value: "all", label: "All Status" },
+        { value: "published", label: "Published" },
+        { value: "draft", label: "Draft" },
+        { value: "cancelled", label: "Cancelled" },
     ];
 
     const filteredEvents = events.filter((event) => {
-        const matchesSearch =
-            event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            event.description
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase()) ||
-            event.location.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory =
-            selectedCategory === "all" || event.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+        if (!searchQuery.trim()) return true;
+        const query = searchQuery.toLowerCase();
+        return (
+            event.title.toLowerCase().includes(query) ||
+            event.description.toLowerCase().includes(query) ||
+            event.location.toLowerCase().includes(query)
+        );
     });
 
     return (
@@ -149,121 +169,214 @@ export default function EventsPage() {
                             className="pl-10"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    handleSearch();
+                                }
+                            }}
                         />
                     </div>
                     <Select
-                        value={selectedCategory}
-                        onValueChange={setSelectedCategory}
+                        value={selectedStatus}
+                        onValueChange={setSelectedStatus}
                     >
                         <SelectTrigger className="w-full sm:w-[180px]">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {categories.map((category) => (
-                                <SelectItem key={category} value={category}>
-                                    {category === "all"
-                                        ? "All Categories"
-                                        : category}
+                            {statusOptions.map((option) => (
+                                <SelectItem
+                                    key={option.value}
+                                    value={option.value}
+                                >
+                                    {option.label}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
+                    <Button onClick={handleSearch} variant="default">
+                        Search
+                    </Button>
                 </div>
+
+                {/* Loading State */}
+                {loading && (
+                    <div className="flex justify-center items-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                )}
+
+                {/* Error State */}
+                {error && !loading && (
+                    <div className="text-center py-12">
+                        <p className="text-destructive text-lg">{error}</p>
+                        <Button
+                            onClick={fetchEvents}
+                            variant="outline"
+                            className="mt-4"
+                        >
+                            Try Again
+                        </Button>
+                    </div>
+                )}
 
                 {/* Events Grid */}
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredEvents.map((event) => {
-                        const percentage = Math.round(
-                            (event.registered / event.capacity) * 100,
-                        );
-                        const spotsLeft = event.capacity - event.registered;
+                {!loading && !error && (
+                    <>
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {filteredEvents.map((event) => {
+                                const capacity = event.maxCapacity || 0;
+                                // Note: We don't have registration count from the API yet
+                                // This would need to be added to the API response
+                                const registered = 0;
+                                const percentage =
+                                    capacity > 0
+                                        ? Math.round(
+                                              (registered / capacity) * 100,
+                                          )
+                                        : 0;
+                                const spotsLeft =
+                                    capacity > 0 ? capacity - registered : 0;
 
-                        return (
-                            <Card
-                                key={event.id}
-                                className="flex flex-col hover:shadow-lg transition-all"
-                            >
-                                <CardHeader>
-                                    <div className="flex items-start justify-between gap-2 mb-2">
-                                        <CardTitle className="text-xl line-clamp-2">
-                                            {event.title}
-                                        </CardTitle>
-                                        <Badge variant="outline">
-                                            {event.category}
-                                        </Badge>
-                                    </div>
-                                    <CardDescription className="line-clamp-2">
-                                        {event.description}
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="flex-1 flex flex-col gap-4">
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Calendar className="h-4 w-4" />
-                                            <span>
-                                                {event.date} • {event.time}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <MapPin className="h-4 w-4" />
-                                            <span className="line-clamp-1">
-                                                {event.location}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                            <Users className="h-4 w-4" />
-                                            <span>
-                                                {event.registered} /{" "}
-                                                {event.capacity} registered
-                                            </span>
-                                        </div>
-                                    </div>
+                                return (
+                                    <Card
+                                        key={event.id}
+                                        className="flex flex-col hover:shadow-lg transition-all"
+                                    >
+                                        <CardHeader>
+                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                                <CardTitle className="text-xl line-clamp-2">
+                                                    {event.title}
+                                                </CardTitle>
+                                                <Badge
+                                                    variant={
+                                                        event.status ===
+                                                        "published"
+                                                            ? "default"
+                                                            : event.status ===
+                                                                "cancelled"
+                                                              ? "destructive"
+                                                              : "secondary"
+                                                    }
+                                                >
+                                                    {event.status}
+                                                </Badge>
+                                            </div>
+                                            <CardDescription className="line-clamp-2">
+                                                {event.description}
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="flex-1 flex flex-col gap-4">
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                    <Calendar className="h-4 w-4" />
+                                                    <span>
+                                                        {formatDate(
+                                                            event.startDate,
+                                                        )}{" "}
+                                                        •{" "}
+                                                        {formatTime(
+                                                            event.startDate,
+                                                            event.endDate,
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                    <MapPin className="h-4 w-4" />
+                                                    <span className="line-clamp-1">
+                                                        {event.location}
+                                                    </span>
+                                                </div>
+                                                {event.maxCapacity && (
+                                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                                        <Users className="h-4 w-4" />
+                                                        <span>
+                                                            Capacity:{" "}
+                                                            {event.maxCapacity}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
 
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between text-xs">
-                                            <span className="text-muted-foreground">
-                                                {percentage}% filled
-                                            </span>
-                                            <span className="font-medium">
-                                                {spotsLeft} spots left
-                                            </span>
-                                        </div>
-                                        <div className="w-full bg-muted rounded-full h-1.5">
-                                            <div
-                                                className="bg-primary h-1.5 rounded-full transition-all"
-                                                style={{
-                                                    width: `${percentage}%`,
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
+                                            {event.maxCapacity && (
+                                                <div className="space-y-2">
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="text-muted-foreground">
+                                                            {percentage}% filled
+                                                        </span>
+                                                        <span className="font-medium">
+                                                            {spotsLeft} spots
+                                                            available
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-muted rounded-full h-1.5">
+                                                        <div
+                                                            className="bg-primary h-1.5 rounded-full transition-all"
+                                                            style={{
+                                                                width: `${percentage}%`,
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
 
-                                    <div className=" gap-2 mt-auto pt-2 ">
-                                        <Link
-                                            href={`/events/${event.id}`}
-                                            className=""
-                                        >
-                                            <Button
-                                                variant="outline"
-                                                className="w-full rounded-5"
-                                            >
-                                                Learn More
-                                            </Button>
-                                        </Link>
-                                        
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })}
-                </div>
+                                            <div className="gap-2 mt-auto pt-2">
+                                                <Link
+                                                    href={`/events/${event.id}`}
+                                                    className=""
+                                                >
+                                                    <Button
+                                                        variant="outline"
+                                                        className="w-full rounded-5"
+                                                    >
+                                                        Learn More
+                                                    </Button>
+                                                </Link>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
+                        </div>
 
-                {filteredEvents.length === 0 && (
-                    <div className="text-center py-12">
-                        <p className="text-muted-foreground text-lg">
-                            No events found matching your criteria
-                        </p>
-                    </div>
+                        {/* Empty State */}
+                        {filteredEvents.length === 0 && (
+                            <div className="text-center py-12">
+                                <p className="text-muted-foreground text-lg">
+                                    No events found matching your criteria
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-center items-center gap-4 mt-8">
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        setPage((p) => Math.max(1, p - 1))
+                                    }
+                                    disabled={page === 1}
+                                >
+                                    Previous
+                                </Button>
+                                <span className="text-sm text-muted-foreground">
+                                    Page {page} of {totalPages}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    onClick={() =>
+                                        setPage((p) =>
+                                            Math.min(totalPages, p + 1),
+                                        )
+                                    }
+                                    disabled={page === totalPages}
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>

@@ -282,6 +282,34 @@ export default function DashboardPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Manager Application CTA */}
+                    <Card className="border-primary/50 bg-primary/5">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Shield className="w-5 h-5" />
+                                Want to Create Events?
+                            </CardTitle>
+                            <CardDescription>
+                                Apply for manager access to create and manage
+                                your own events
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground mb-4">
+                                As a manager, you&apos;ll be able to create
+                                events, manage registrations, track attendees,
+                                and access advanced event management features.
+                            </p>
+                            <Button
+                                onClick={() => router.push("/apply-manager")}
+                                className="gap-2"
+                            >
+                                <UserPlus className="w-4 h-4" />
+                                Apply for Manager Access
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
         );
@@ -917,6 +945,14 @@ export default function DashboardPage() {
                                 <Button
                                     variant="outline"
                                     className="w-full justify-start gap-2"
+                                    onClick={() => router.push("/admin")}
+                                >
+                                    <Shield className="w-4 h-4" />
+                                    Manager Applications
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-start gap-2"
                                 >
                                     <UserPlus className="w-4 h-4" />
                                     Promote User to Manager
@@ -925,7 +961,7 @@ export default function DashboardPage() {
                                     variant="outline"
                                     className="w-full justify-start gap-2"
                                 >
-                                    <BarChart3 className="w-4 h-4" />
+                                    <FileText className="w-4 h-4" />
                                     Generate Reports
                                 </Button>
                                 <Button
@@ -933,7 +969,7 @@ export default function DashboardPage() {
                                     className="w-full justify-start gap-2"
                                 >
                                     <Bell className="w-4 h-4" />
-                                    Send Announcement
+                                    Send Announcements
                                 </Button>
                                 <Button
                                     variant="outline"

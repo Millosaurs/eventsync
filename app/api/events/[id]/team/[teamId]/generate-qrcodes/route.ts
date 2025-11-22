@@ -173,7 +173,7 @@ export async function POST(
                         teamId: teamId,
                         memberId: member.id,
                         type: qrType.trackingType,
-                        label: qrType.label,
+                        label: memberLabel,
                     });
 
                     const tempQrCodeUrl = await QRCode.toDataURL(tempQrData, {
@@ -191,7 +191,7 @@ export async function POST(
                             teamId,
                             memberId: member.id,
                             trackingType: qrType.trackingType,
-                            label: qrType.label,
+                            label: memberLabel,
                             metadata: null,
                             qrCodeData: tempQrCodeUrl,
                         })
@@ -204,7 +204,7 @@ export async function POST(
                         teamId: teamId,
                         memberId: member.id,
                         type: qrType.trackingType,
-                        label: qrType.label,
+                        label: memberLabel,
                     });
 
                     const finalQrCodeUrl = await QRCode.toDataURL(finalQrData, {
@@ -222,22 +222,22 @@ export async function POST(
 
                     results.push({
                         memberName: member.name,
-                        label: qrType.label,
+                        id: newTracking[0].id,
+                        label: memberLabel,
                         trackingType: qrType.trackingType,
                         status: "created",
-                        message: "Successfully created",
                     });
                     totalCreated++;
                 } catch (error) {
                     console.error(
-                        `Error generating QR for ${member.name} - ${qrType.label}:`,
+                        `Error creating QR code for member ${member.name}:`,
                         error,
                     );
                     results.push({
                         memberName: member.name,
                         label: qrType.label,
                         trackingType: qrType.trackingType,
-                        status: "failed",
+                        status: "error",
                         message:
                             error instanceof Error
                                 ? error.message

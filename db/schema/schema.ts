@@ -399,10 +399,6 @@ export const attendanceTrackingRelations = relations(
             fields: [attendanceTracking.teamId],
             references: [team.id],
         }),
-        member: one(teamMember, {
-            fields: [attendanceTracking.memberId],
-            references: [teamMember.id],
-        }),
         scannedByUser: one(user, {
             fields: [attendanceTracking.scannedBy],
             references: [user.id],

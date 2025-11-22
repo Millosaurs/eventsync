@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Calendar,
     MapPin,
@@ -271,37 +271,28 @@ export default function RunningEventPage() {
         document.body.removeChild(link);
     };
 
-    // Filter QR codes based on selected member
+    // Compute filtered QR codes based on selected member
     const filteredQRCodes = qrCodes.filter((qr) => {
         if (selectedMember === "all") return true;
-        if (selectedMember === "me" && session?.user?.email) {
-            // Find if current user is a member
+        if (selectedMember === "me") {
             const currentMember = team?.members.find(
-                (m) =>
-                    m.email === session.user.email && m.status === "accepted",
+                (m) => m.email === session?.user?.email,
             );
-            return currentMember ? qr.memberId === currentMember.id : false;
+            return qr.memberId === currentMember?.id;
         }
         return qr.memberId === selectedMember;
     });
 
-    // Get unique members who have QR codes
-    const membersWithQRs = Array.from(
-        new Set(qrCodes.filter((qr) => qr.memberId).map((qr) => qr.memberId)),
-    )
-        .map((memberId) => {
-            const qr = qrCodes.find((q) => q.memberId === memberId);
-            return {
-                id: memberId!,
-                name: qr?.memberName || "Unknown",
-            };
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-    // Check if current user is a team member
+    // Get current user's member data
     const currentUserMember = team?.members.find(
         (m) => m.email === session?.user?.email && m.status === "accepted",
     );
+
+    // Get members who have QR codes assigned
+    const membersWithQRs =
+        team?.members.filter((member) =>
+            qrCodes.some((qr) => qr.memberId === member.id),
+        ) || [];
 
     if (loading) {
         return (
@@ -626,7 +617,10 @@ export default function RunningEventPage() {
                                                     membersWithQRs.length <=
                                                         5 &&
                                                     membersWithQRs.map(
-                                                        (member) => (
+                                                        (member: {
+                                                            id: string;
+                                                            name: string;
+                                                        }) => (
                                                             <TabsTrigger
                                                                 key={member.id}
                                                                 value={
@@ -811,7 +805,7 @@ export default function RunningEventPage() {
                                         {filteredQRCodes.length > 1 && (
                                             <div className="flex justify-center gap-2 pt-2">
                                                 {filteredQRCodes.map(
-                                                    (_, index) => (
+                                                    (_qr, index) => (
                                                         <button
                                                             key={index}
                                                             onClick={() =>

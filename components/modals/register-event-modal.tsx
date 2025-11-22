@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, cloneElement, isValidElement } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -79,7 +79,11 @@ export function RegisterEventModal({
             {trigger ? (
                 <DialogTrigger
                     render={(props) =>
-                        typeof trigger === "function" ? trigger(props) : trigger
+                        typeof trigger === "function"
+                            ? trigger(props)
+                            : isValidElement(trigger)
+                              ? cloneElement(trigger, props)
+                              : trigger
                     }
                 />
             ) : (

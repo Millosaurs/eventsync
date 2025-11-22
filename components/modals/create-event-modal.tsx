@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Loader2 } from "lucide-react";
 import { toastManager } from "@/components/ui/toast";
 import { useRouter } from "next/navigation";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 
 interface CreateEventModalProps {
     trigger?: React.ReactNode;
@@ -30,10 +31,11 @@ export function CreateEventModal({ trigger }: CreateEventModalProps) {
         title: "",
         description: "",
         location: "",
-        startDate: "",
-        endDate: "",
         maxCapacity: "",
     });
+
+    const [startDate, setStartDate] = useState<Date | undefined>();
+    const [endDate, setEndDate] = useState<Date | undefined>();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,7 +47,11 @@ export function CreateEventModal({ trigger }: CreateEventModalProps) {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    startDate: startDate?.toISOString(),
+                    endDate: endDate?.toISOString(),
+                }),
             });
 
             const data = await response.json();
@@ -66,10 +72,10 @@ export function CreateEventModal({ trigger }: CreateEventModalProps) {
                 title: "",
                 description: "",
                 location: "",
-                startDate: "",
-                endDate: "",
                 maxCapacity: "",
             });
+            setStartDate(undefined);
+            setEndDate(undefined);
             setOpen(false);
 
             // Refresh the page or redirect to event details
@@ -146,32 +152,19 @@ export function CreateEventModal({ trigger }: CreateEventModalProps) {
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="startDate">Start Date *</Label>
-                            <Input
-                                id="startDate"
-                                type="datetime-local"
-                                value={formData.startDate}
-                                onChange={(e) =>
-                                    setFormData({
-                                        ...formData,
-                                        startDate: e.target.value,
-                                    })
-                                }
-                                required
+                            <DateTimePicker
+                                date={startDate}
+                                setDate={setStartDate}
+                                placeholder="Select start date and time"
                             />
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="endDate">End Date</Label>
-                            <Input
-                                id="endDate"
-                                type="datetime-local"
-                                value={formData.endDate}
-                                onChange={(e) =>
-                                    setFormData({
-                                        ...formData,
-                                        endDate: e.target.value,
-                                    })
-                                }
+                            <DateTimePicker
+                                date={endDate}
+                                setDate={setEndDate}
+                                placeholder="Select end date and time"
                             />
                         </div>
                     </div>

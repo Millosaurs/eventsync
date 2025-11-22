@@ -57,15 +57,28 @@ export function Header() {
                                 About
                             </Button>
                         </Link>
-                        <Link href="/contact">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-sm font-medium"
-                            >
-                                Contact
-                            </Button>
-                        </Link>
+                        {user?.role === "admin" && (
+                            <Link href="/admin">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-sm font-medium"
+                                >
+                                    Admin Panel
+                                </Button>
+                            </Link>
+                        )}
+                        {user?.role === "user" && (
+                            <Link href="/apply-manager">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-sm font-medium"
+                                >
+                                    Apply Manager
+                                </Button>
+                            </Link>
+                        )}
                     </nav>
 
                     {/* Actions - Right */}

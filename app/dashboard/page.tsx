@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { CreateEventModal } from "@/components/modals/create-event-modal";
 import {
     Calendar,
     Users,
@@ -411,7 +410,16 @@ export default function DashboardPage() {
                                             Events you&apos;re managing
                                         </CardDescription>
                                     </div>
-                                    <CreateEventModal />
+                                    <Button
+                                        size="sm"
+                                        className="gap-2"
+                                        onClick={() =>
+                                            router.push("/create/events")
+                                        }
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        Create Event
+                                    </Button>
                                 </div>
                             </CardHeader>
                             <CardContent className="space-y-4">

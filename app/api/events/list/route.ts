@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
                 status: schema.event.status,
                 managerId: schema.event.managerId,
                 teamId: schema.event.teamId,
+                page: schema.event.page,
                 createdAt: schema.event.createdAt,
                 updatedAt: schema.event.updatedAt,
             })

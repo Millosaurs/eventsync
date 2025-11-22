@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
             location,
             registrationDeadline,
             status = "draft",
+            page,
         } = body;
 
         // Validate required fields
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
                 status: status || "draft",
                 managerId: userId,
                 teamId: null, // Can be added later if needed
+                page: page || null,
             })
             .returning();
 

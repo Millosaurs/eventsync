@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { PageDesignStorage } from "@/lib/utils/page-design-storage";
+import { PageDesign, PageBlock } from "@/lib/types/page-builder";
 import BlockRenderer from "@/components/page-builder/block-renderer";
 import { useSession } from "@/lib/auth-client";
 
@@ -55,16 +56,7 @@ export default function EventDetailPage() {
     const [event, setEvent] = useState<EventData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [pageDesign, setPageDesign] =
-        useState<ReturnType<typeof PageDesignStorage.loadDesign>>(null);
-
-    useEffect(() => {
-        if (id) {
-            fetchEvent();
-            // Load page design from localStorage
-            setPageDesign(PageDesignStorage.loadDesign(id));
-        }
-    }, [id]);
+    const [pageDesign, setPageDesign] = useState<PageDesign | null>(null);
 
     const fetchEvent = async () => {
         try {
@@ -80,12 +72,25 @@ export default function EventDetailPage() {
                 setError(data.message || "Failed to fetch event");
             }
         } catch (err) {
-            setError("An error occurred while fetching event details");
             console.error("Error fetching event:", err);
+            setError("An error occurred while fetching the event");
         } finally {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        const loadData = async () => {
+            if (id) {
+                await fetchEvent();
+                // Load page design from database/localStorage
+                const design = await PageDesignStorage.loadDesign(id);
+                setPageDesign(design);
+            }
+        };
+        loadData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id]);
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);

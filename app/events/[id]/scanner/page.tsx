@@ -15,6 +15,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useSession } from "@/lib/auth-client";
 
 interface ScanResult {
   success: boolean;
@@ -39,10 +40,10 @@ interface EventData {
 }
 
 export default function QRScannerPage() {
-    const params = useParams();
-    const router = useRouter();
-    const eventId = params.id as string;
-    const { data: session, isPending } = useSession();
+  const params = useParams();
+  const router = useRouter();
+  const eventId = params.id as string;
+  const { data: session, isPending } = useSession();
 
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -145,54 +146,41 @@ export default function QRScannerPage() {
     [eventId, cameraActive],
   );
 
-  // Load jsQR library once
-  useEffect(() => {
-    import("jsqr").then((module) => {
-      jsQRRef.current = module.default;
-    });
-  }, []);
-
-  useEffect(() => {
-    loadEvent();
-    return () => {
-      cleanup();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
-
-    if (isPending || loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center flex-col gap-2">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">
-                    {isPending ? "Loading session..." : "Loading event..."}
-                </p>
-            </div>
-        );
-    }
-
-    if (!session?.user) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <Card className="w-full max-w-md">
-                    <CardContent className="pt-6">
-                        <div className="text-center">
-                            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                            <h2 className="text-xl font-semibold mb-2">
-                                Authentication Required
-                            </h2>
-                            <p className="text-muted-foreground mb-4">
-                                Please sign in to access the QR scanner.
-                            </p>
-                            <Button onClick={() => router.push("/auth")}>
-                                Sign In
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        );
+  // Load event data
+  const loadEvent = async () => {
+    try {
+      const response = await fetch(`/api/events/${eventId}`);
+      const data = await response.json();
+      if (data.success && data.data) {
+        setEvent(data.data);
       }
+    } catch (error) {
+      console.error("Error loading event:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cleanup camera resources
+  const cleanup = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  // Start camera
+  const startCamera = async () => {
+    try {
+      setError("");
+      setScanResult(null);
 
       // Stop any existing stream
       cleanup();
@@ -279,6 +267,21 @@ export default function QRScannerPage() {
       setScanningActive(false);
     }
   };
+
+  // Load jsQR library once
+  useEffect(() => {
+    import("jsqr").then((module) => {
+      jsQRRef.current = module.default;
+    });
+  }, []);
+
+  useEffect(() => {
+    loadEvent();
+    return () => {
+      cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
   const scanFrame = useCallback(() => {
     if (

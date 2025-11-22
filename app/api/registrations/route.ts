@@ -62,6 +62,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Check if event has already ended
+        if (eventRecord.endDate && new Date(eventRecord.endDate) < new Date()) {
+            return NextResponse.json(
+                {
+                    error: "Cannot register for an event that has already ended",
+                },
+                { status: 400 },
+            );
+        }
+
         // Check if team exists
         const [teamRecord] = await db
             .select()

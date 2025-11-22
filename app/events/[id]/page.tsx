@@ -510,9 +510,12 @@ export default function EventDetailPage() {
                                                 {event.status === "published"
                                                     ? "Register Team"
                                                     : event.status ===
-                                                        "cancelled"
-                                                      ? "Event Cancelled"
-                                                      : "Registration Closed"}
+                                                        "published"
+                                                      ? "Register Team"
+                                                      : event.status ===
+                                                          "cancelled"
+                                                        ? "Event Cancelled"
+                                                        : "Registration Closed"}
                                             </button>
                                         }
                                     />

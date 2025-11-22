@@ -85,23 +85,91 @@ export default function QRScannerPage() {
     const startCamera = async () => {
         try {
             setError("");
+            console.log("Starting camera...");
+
+            // Check if getUserMedia is supported
+            if (
+                !navigator.mediaDevices ||
+                !navigator.mediaDevices.getUserMedia
+            ) {
+                throw new Error("Camera API is not supported in this browser");
+            }
+
+            // Stop any existing stream first
+            stopCamera();
+
+            console.log("Requesting camera access...");
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: "environment" },
+                video: {
+                    facingMode: "environment",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
+                audio: false,
             });
+
+            console.log("Camera stream obtained:", stream.active);
             streamRef.current = stream;
 
             if (videoRef.current) {
+                console.log("Setting video source...");
                 videoRef.current.srcObject = stream;
-                videoRef.current.play();
+
+                // Wait for video to be ready
+                videoRef.current.onloadedmetadata = () => {
+                    console.log("Video metadata loaded");
+                    console.log(
+                        "Video dimensions:",
+                        videoRef.current?.videoWidth,
+                        "x",
+                        videoRef.current?.videoHeight,
+                    );
+                };
+
+                videoRef.current.onloadeddata = () => {
+                    console.log("Video data loaded");
+                };
+
+                videoRef.current.onerror = (e) => {
+                    console.error("Video element error:", e);
+                };
+
+                // Try to play
+                try {
+                    await videoRef.current.play();
+                    console.log("Video playing successfully");
+                } catch (playError) {
+                    console.error("Error playing video:", playError);
+                    throw playError;
+                }
             }
 
             setCameraActive(true);
-            startScanning();
+
+            // Start scanning after a short delay to ensure video is rendering
+            setTimeout(() => {
+                startScanning();
+            }, 500);
         } catch (err) {
             console.error("Error accessing camera:", err);
-            setError(
-                "Failed to access camera. Please check permissions or use manual entry.",
-            );
+            const errorMessage =
+                err instanceof Error ? err.message : "Unknown error";
+            if (
+                errorMessage.includes("Permission denied") ||
+                errorMessage.includes("NotAllowedError")
+            ) {
+                setError(
+                    "Camera access denied. Please allow camera permissions in your browser settings and try again.",
+                );
+            } else if (errorMessage.includes("not supported")) {
+                setError(
+                    "Camera is not supported. Please use HTTPS or localhost, or try manual entry.",
+                );
+            } else {
+                setError(
+                    `Failed to access camera: ${errorMessage}. Please check permissions or use manual entry.`,
+                );
+            }
         }
     };
 
@@ -138,11 +206,24 @@ export default function QRScannerPage() {
         const canvas = canvasRef.current;
         const context = canvas.getContext("2d");
 
-        if (!context || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+        if (!context || video.readyState !== video.HAVE_ENOUGH_DATA) {
+            return;
+        }
+
+        // Make sure video has valid dimensions
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+            console.log("Video dimensions not ready");
+            return;
+        }
 
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // Mirror the image back when drawing to canvas
+        context.save();
+        context.scale(-1, 1);
+        context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+        context.restore();
 
         try {
             const imageData = context.getImageData(
@@ -157,9 +238,13 @@ export default function QRScannerPage() {
                 imageData.data,
                 imageData.width,
                 imageData.height,
+                {
+                    inversionAttempts: "dontInvert",
+                },
             );
 
             if (code && code.data) {
+                console.log("QR Code detected:", code.data);
                 stopCamera();
                 await verifyQRCode(code.data);
             }
@@ -285,6 +370,16 @@ export default function QRScannerPage() {
                     </div>
                 </div>
 
+                <Alert className="mb-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                        <strong>Camera Requirements:</strong> Make sure
+                        you&apos;re using HTTPS (or localhost) and grant camera
+                        permissions when prompted. If the camera doesn&apos;t
+                        work, you can use manual entry below.
+                    </AlertDescription>
+                </Alert>
+
                 {error && (
                     <Alert className="mb-6 border-destructive">
                         <AlertCircle className="h-4 w-4 text-destructive" />
@@ -398,17 +493,31 @@ export default function QRScannerPage() {
                                             <video
                                                 ref={videoRef}
                                                 className="w-full h-full object-cover"
+                                                autoPlay
                                                 playsInline
+                                                muted
+                                                style={{
+                                                    transform: "scaleX(-1)",
+                                                    WebkitTransform:
+                                                        "scaleX(-1)",
+                                                }}
                                             />
                                             <canvas
                                                 ref={canvasRef}
                                                 className="hidden"
                                             />
                                             {scanning && (
-                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                                     <div className="border-4 border-primary rounded-lg w-64 h-64 animate-pulse" />
                                                 </div>
                                             )}
+                                            {cameraActive &&
+                                                videoRef.current?.readyState !==
+                                                    4 && (
+                                                    <div className="absolute inset-0 flex items-center justify-center">
+                                                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                                    </div>
+                                                )}
                                         </div>
                                         <div className="flex gap-2">
                                             <Button

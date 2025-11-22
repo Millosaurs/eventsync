@@ -32,8 +32,24 @@ export async function POST(
         }
 
         // Extract the tracking ID from QR data
-        // QR data format is expected to be the tracking ID (UUID)
-        const trackingId = qrData.trim();
+        // QR data can be either JSON or plain tracking ID
+        let trackingId: string;
+
+        try {
+            // Try to parse as JSON first
+            const parsedData = JSON.parse(qrData);
+            trackingId = parsedData.trackingId;
+        } catch {
+            // If not JSON, treat as plain tracking ID
+            trackingId = qrData.trim();
+        }
+
+        if (!trackingId) {
+            return NextResponse.json(
+                { success: false, message: "Invalid QR code format" },
+                { status: 400 },
+            );
+        }
 
         // Fetch the attendance tracking record
         const trackingRecords = await db

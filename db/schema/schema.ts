@@ -106,6 +106,36 @@ export const team = pgTable("team", {
         .notNull(),
 });
 
+export const teamMember = pgTable(
+    "team_member",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        teamId: uuid("team_id")
+            .notNull()
+            .references(() => team.id, { onDelete: "cascade" }),
+        email: text("email").notNull(),
+        name: text("name"),
+        userId: text("user_id").references(() => user.id, {
+            onDelete: "set null",
+        }),
+        role: text("role").default("member").notNull(), // 'leader' or 'member'
+        status: text("status").default("pending").notNull(), // 'pending', 'accepted', 'declined'
+        invitedAt: timestamp("invited_at", { mode: "string" })
+            .defaultNow()
+            .notNull(),
+        joinedAt: timestamp("joined_at", { mode: "string" }),
+        createdAt: timestamp("created_at", { mode: "string" })
+            .defaultNow()
+            .notNull(),
+        updatedAt: timestamp("updated_at", { mode: "string" })
+            .defaultNow()
+            .notNull(),
+    },
+    (table) => [
+        unique("team_member_team_email_unique").on(table.teamId, table.email),
+    ],
+);
+
 export const event = pgTable("event", {
     id: uuid("id").primaryKey().defaultRandom(),
     title: text("title").notNull(),
@@ -118,6 +148,8 @@ export const event = pgTable("event", {
     endDate: timestamp("end_date", { mode: "string" }),
     location: text("location"),
     maxCapacity: integer("max_capacity"),
+    minTeamSize: integer("min_team_size").default(1),
+    maxTeamSize: integer("max_team_size").default(5),
     registrationDeadline: timestamp("registration_deadline", {
         mode: "string",
     }),
@@ -139,9 +171,9 @@ export const registration = pgTable(
         eventId: uuid("event_id")
             .notNull()
             .references(() => event.id, { onDelete: "cascade" }),
-        userId: text("user_id")
+        teamId: uuid("team_id")
             .notNull()
-            .references(() => user.id, { onDelete: "cascade" }),
+            .references(() => team.id, { onDelete: "cascade" }),
         status: text("status").default("confirmed").notNull(),
         registeredAt: timestamp("registered_at", { mode: "string" })
             .defaultNow()
@@ -157,19 +189,9 @@ export const registration = pgTable(
             .notNull(),
     },
     (table) => [
-        foreignKey({
-            columns: [table.eventId],
-            foreignColumns: [event.id],
-            name: "registration_event_id_event_id_fk",
-        }).onDelete("cascade"),
-        foreignKey({
-            columns: [table.userId],
-            foreignColumns: [user.id],
-            name: "registration_user_id_user_id_fk",
-        }).onDelete("cascade"),
-        unique("registration_event_user_unique").on(
+        unique("registration_event_team_unique").on(
             table.eventId,
-            table.userId,
+            table.teamId,
         ),
     ],
 );
@@ -251,4 +273,132 @@ export const managerApplicationsRelations = relations(
 
 export const userRelations = relations(user, ({ many }) => ({
     managerApplications: many(managerApplications),
+    teamsCreated: many(team),
+    teamMemberships: many(teamMember),
 }));
+
+export const teamRelations = relations(team, ({ one, many }) => ({
+    creator: one(user, {
+        fields: [team.createdBy],
+        references: [user.id],
+    }),
+    members: many(teamMember),
+    registrations: many(registration),
+}));
+
+export const teamMemberRelations = relations(teamMember, ({ one }) => ({
+    team: one(team, {
+        fields: [teamMember.teamId],
+        references: [team.id],
+    }),
+    user: one(user, {
+        fields: [teamMember.userId],
+        references: [user.id],
+    }),
+}));
+
+export const eventRelations = relations(event, ({ one, many }) => ({
+    manager: one(user, {
+        fields: [event.managerId],
+        references: [user.id],
+    }),
+    registrations: many(registration),
+}));
+
+export const registrationRelations = relations(
+    registration,
+    ({ one, many }) => ({
+        event: one(event, {
+            fields: [registration.eventId],
+            references: [event.id],
+        }),
+        team: one(team, {
+            fields: [registration.teamId],
+            references: [team.id],
+        }),
+        transactions: many(transaction),
+    }),
+);
+
+export const transactionRelations = relations(transaction, ({ one }) => ({
+    registration: one(registration, {
+        fields: [transaction.registrationId],
+        references: [registration.id],
+    }),
+    user: one(user, {
+        fields: [transaction.userId],
+        references: [user.id],
+    }),
+}));
+
+export const eventMessage = pgTable("event_message", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+        .notNull()
+        .references(() => event.id, { onDelete: "cascade" }),
+    managerId: text("manager_id")
+        .notNull()
+        .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    content: text("content").notNull(),
+    priority: text("priority").default("normal").notNull(), // 'low', 'normal', 'high', 'urgent'
+    createdAt: timestamp("created_at", { mode: "string" })
+        .defaultNow()
+        .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "string" })
+        .defaultNow()
+        .notNull(),
+});
+
+export const attendanceTracking = pgTable("attendance_tracking", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+        .notNull()
+        .references(() => event.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id")
+        .notNull()
+        .references(() => team.id, { onDelete: "cascade" }),
+    trackingType: text("tracking_type").notNull(), // 'attendance', 'food_coupon', 'custom'
+    label: text("label").notNull(), // e.g., "Day 1 Attendance", "Lunch Coupon"
+    qrCodeData: text("qr_code_data"), // Stored QR code data URL
+    scannedAt: timestamp("scanned_at", { mode: "string" }),
+    scannedBy: text("scanned_by").references(() => user.id, {
+        onDelete: "set null",
+    }),
+    metadata: jsonb("metadata"), // Additional tracking data
+    createdAt: timestamp("created_at", { mode: "string" })
+        .defaultNow()
+        .notNull(),
+    updatedAt: timestamp("updated_at", { mode: "string" })
+        .defaultNow()
+        .notNull(),
+});
+
+export const eventMessageRelations = relations(eventMessage, ({ one }) => ({
+    event: one(event, {
+        fields: [eventMessage.eventId],
+        references: [event.id],
+    }),
+    manager: one(user, {
+        fields: [eventMessage.managerId],
+        references: [user.id],
+    }),
+}));
+
+export const attendanceTrackingRelations = relations(
+    attendanceTracking,
+    ({ one }) => ({
+        event: one(event, {
+            fields: [attendanceTracking.eventId],
+            references: [event.id],
+        }),
+        team: one(team, {
+            fields: [attendanceTracking.teamId],
+            references: [team.id],
+        }),
+        scannedByUser: one(user, {
+            fields: [attendanceTracking.scannedBy],
+            references: [user.id],
+        }),
+    }),
+);

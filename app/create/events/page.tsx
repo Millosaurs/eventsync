@@ -31,6 +31,7 @@ import {
     ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
+import { DateTimePicker } from "@/components/ui/datetime-picker";
 
 export default function CreateEventPage() {
     const router = useRouter();
@@ -42,11 +43,14 @@ export default function CreateEventPage() {
         description: "",
         imageUrl: "",
         maxCapacity: "",
-        startDate: "",
-        endDate: "",
         location: "",
-        registrationDeadline: "",
     });
+
+    const [startDate, setStartDate] = useState<Date | undefined>();
+    const [endDate, setEndDate] = useState<Date | undefined>();
+    const [registrationDeadline, setRegistrationDeadline] = useState<
+        Date | undefined
+    >();
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -72,35 +76,23 @@ export default function CreateEventPage() {
             newErrors.description = "Event description is required";
         }
 
-        if (!formData.startDate || formData.startDate.trim() === "") {
+        if (!startDate) {
             newErrors.startDate = "Start date and time is required";
         }
 
-        if (!formData.endDate || formData.endDate.trim() === "") {
+        if (!endDate) {
             newErrors.endDate = "End date and time is required";
         }
 
-        if (
-            formData.startDate &&
-            formData.endDate &&
-            formData.startDate.trim() !== "" &&
-            formData.endDate.trim() !== ""
-        ) {
-            const start = new Date(formData.startDate);
-            const end = new Date(formData.endDate);
-            if (end <= start) {
-                newErrors.endDate = "End date must be after start date";
-            }
+        if (startDate && endDate && endDate <= startDate) {
+            newErrors.endDate = "End date must be after start date";
         }
 
         if (!formData.location.trim()) {
             newErrors.location = "Location/venue is required";
         }
 
-        if (
-            !formData.registrationDeadline ||
-            formData.registrationDeadline.trim() === ""
-        ) {
+        if (!registrationDeadline) {
             newErrors.registrationDeadline =
                 "Registration deadline is required";
         }
@@ -187,12 +179,10 @@ export default function CreateEventPage() {
                     maxCapacity: formData.maxCapacity
                         ? parseInt(formData.maxCapacity)
                         : null,
-                    startDate: new Date(formData.startDate).toISOString(),
-                    endDate: new Date(formData.endDate).toISOString(),
+                    startDate: startDate?.toISOString(),
+                    endDate: endDate?.toISOString(),
                     location: formData.location,
-                    registrationDeadline: new Date(
-                        formData.registrationDeadline,
-                    ).toISOString(),
+                    registrationDeadline: registrationDeadline?.toISOString(),
                     status: "draft",
                 }),
             });
@@ -350,18 +340,24 @@ export default function CreateEventPage() {
                         </Field>
 
                         {/* Start Date and Time */}
-                        <Field>
+                        <Field name="startDate">
                             <FieldLabel className="gap-2">
                                 <Calendar className="w-4 h-4" />
-                                Start Date and Time{" "}
+                                Start Date & Time{" "}
                                 <span className="text-destructive">*</span>
                             </FieldLabel>
-                            <Input
-                                name="startDate"
-                                type="datetime-local"
-                                value={formData.startDate}
-                                onChange={handleInputChange}
-                                aria-invalid={!!errors.startDate}
+                            <DateTimePicker
+                                date={startDate}
+                                setDate={(date) => {
+                                    setStartDate(date);
+                                    if (errors.startDate) {
+                                        setErrors((prev) => ({
+                                            ...prev,
+                                            startDate: "",
+                                        }));
+                                    }
+                                }}
+                                placeholder="Select start date and time"
                             />
                             {errors.startDate && (
                                 <FieldError>{errors.startDate}</FieldError>
@@ -369,18 +365,24 @@ export default function CreateEventPage() {
                         </Field>
 
                         {/* End Date and Time */}
-                        <Field>
+                        <Field name="endDate">
                             <FieldLabel className="gap-2">
                                 <Clock className="w-4 h-4" />
-                                End Date and Time{" "}
+                                End Date & Time{" "}
                                 <span className="text-destructive">*</span>
                             </FieldLabel>
-                            <Input
-                                name="endDate"
-                                type="datetime-local"
-                                value={formData.endDate}
-                                onChange={handleInputChange}
-                                aria-invalid={!!errors.endDate}
+                            <DateTimePicker
+                                date={endDate}
+                                setDate={(date) => {
+                                    setEndDate(date);
+                                    if (errors.endDate) {
+                                        setErrors((prev) => ({
+                                            ...prev,
+                                            endDate: "",
+                                        }));
+                                    }
+                                }}
+                                placeholder="Select end date and time"
                             />
                             {errors.endDate && (
                                 <FieldError>{errors.endDate}</FieldError>
@@ -407,23 +409,25 @@ export default function CreateEventPage() {
                         </Field>
 
                         {/* Registration Deadline */}
-                        <Field>
+                        <Field name="registrationDeadline">
                             <FieldLabel className="gap-2">
                                 <Calendar className="w-4 h-4" />
                                 Registration Deadline{" "}
                                 <span className="text-destructive">*</span>
                             </FieldLabel>
-                            <Input
-                                name="registrationDeadline"
-                                type="datetime-local"
-                                value={formData.registrationDeadline}
-                                onChange={handleInputChange}
-                                aria-invalid={!!errors.registrationDeadline}
+                            <DateTimePicker
+                                date={registrationDeadline}
+                                setDate={(date) => {
+                                    setRegistrationDeadline(date);
+                                    if (errors.registrationDeadline) {
+                                        setErrors((prev) => ({
+                                            ...prev,
+                                            registrationDeadline: "",
+                                        }));
+                                    }
+                                }}
+                                placeholder="Select registration deadline"
                             />
-                            <FieldDescription>
-                                The last date and time users can register for
-                                this event
-                            </FieldDescription>
                             {errors.registrationDeadline && (
                                 <FieldError>
                                     {errors.registrationDeadline}

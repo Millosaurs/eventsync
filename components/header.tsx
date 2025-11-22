@@ -57,17 +57,6 @@ export function Header() {
                                 About
                             </Button>
                         </Link>
-                        {user?.role === "admin" && (
-                            <Link href="/admin">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-sm font-medium"
-                                >
-                                    Admin Panel
-                                </Button>
-                            </Link>
-                        )}
                         {user?.role === "user" && (
                             <Link href="/apply-manager">
                                 <Button

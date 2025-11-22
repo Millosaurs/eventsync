@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Search, Users, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MyRegistrationsModal } from "@/components/modals/my-registrations-modal";
 
 interface Event {
     id: string;
@@ -197,6 +198,7 @@ export default function EventsPage() {
                     <Button onClick={handleSearch} variant="default">
                         Search
                     </Button>
+                    <MyRegistrationsModal />
                 </div>
 
                 {/* Loading State */}

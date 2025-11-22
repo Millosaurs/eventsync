@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { RegisterEventModal } from "@/components/modals/register-event-modal";
+import { RegisterTeamModal } from "@/components/modals/register-team-modal";
 import {
     Calendar,
     MapPin,
@@ -16,6 +16,7 @@ import {
     Share2,
     Edit,
     Loader2,
+    ExternalLink,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -33,12 +34,26 @@ interface EventData {
     endDate: string;
     location: string;
     maxCapacity: number | null;
+    minTeamSize: number | null;
+    maxTeamSize: number | null;
     registrationDeadline: string;
     status: string;
     managerId: string;
     teamId: string | null;
     createdAt: string;
     updatedAt: string;
+}
+
+interface UserRegistrationData {
+    id: string;
+    event: {
+        id: string;
+        title: string;
+    };
+    team: {
+        id: string;
+        name: string;
+    };
 }
 
 interface ApiResponse {
@@ -57,6 +72,11 @@ export default function EventDetailPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [pageDesign, setPageDesign] = useState<PageDesign | null>(null);
+    const [userRegistration, setUserRegistration] = useState<{
+        teamId: string;
+        teamName: string;
+        registrationId: string;
+    } | null>(null);
 
     const fetchEvent = async () => {
         try {
@@ -86,11 +106,38 @@ export default function EventDetailPage() {
                 // Load page design from database/localStorage
                 const design = await PageDesignStorage.loadDesign(id);
                 setPageDesign(design);
+                // Check if user is registered for this event
+                await checkUserRegistration();
             }
         };
         loadData();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id]);
+
+    const checkUserRegistration = async () => {
+        if (!session?.user) return;
+
+        try {
+            const response = await fetch("/api/user/registrations");
+            const data = await response.json();
+
+            if (data.success && data.data.registrations) {
+                const registration = data.data.registrations.find(
+                    (reg: any) => reg.event.id === id,
+                );
+
+                if (registration) {
+                    setUserRegistration({
+                        teamId: registration.team.id,
+                        teamName: registration.team.name,
+                        registrationId: registration.id,
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Error checking user registration:", error);
+        }
+    };
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -430,31 +477,57 @@ export default function EventDetailPage() {
                                     </div>
                                 </div>
 
-                                <RegisterEventModal
-                                    eventId={event.id}
-                                    eventTitle={event.title}
-                                    eventDate={formatDateTime(event.startDate)}
-                                    eventLocation={event.location}
-                                    trigger={
-                                        <button
-                                            className="w-full relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border bg-primary text-primary-foreground px-4 py-2.5 text-base font-medium shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-                                            disabled={
-                                                event.status !== "published"
-                                            }
-                                        >
-                                            {event.status === "published"
-                                                ? "Register Now"
-                                                : event.status === "cancelled"
-                                                  ? "Event Cancelled"
-                                                  : "Registration Closed"}
-                                        </button>
-                                    }
-                                />
+                                {event.status === "running" &&
+                                userRegistration ? (
+                                    <Link
+                                        href={`/running/${event.id}/${userRegistration.teamId}`}
+                                    >
+                                        <Button className="w-full" size="lg">
+                                            <ExternalLink className="w-4 h-4 mr-2" />
+                                            View Running Event Portal
+                                        </Button>
+                                    </Link>
+                                ) : (
+                                    <RegisterTeamModal
+                                        eventId={event.id}
+                                        eventTitle={event.title}
+                                        eventDate={formatDateTime(
+                                            event.startDate,
+                                        )}
+                                        eventLocation={event.location}
+                                        minTeamSize={event.minTeamSize || 1}
+                                        maxTeamSize={event.maxTeamSize || 5}
+                                        trigger={
+                                            <button
+                                                className="w-full relative inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border bg-primary text-primary-foreground px-4 py-2.5 text-base font-medium shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                                                disabled={
+                                                    event.status !== "published"
+                                                }
+                                            >
+                                                {event.status === "published"
+                                                    ? "Register Team"
+                                                    : event.status ===
+                                                        "cancelled"
+                                                      ? "Event Cancelled"
+                                                      : "Registration Closed"}
+                                            </button>
+                                        }
+                                    />
+                                )}
 
-                                <p className="text-xs text-center text-muted-foreground">
-                                    Registration confirmation will be sent to
-                                    your email
-                                </p>
+                                {event.status === "running" &&
+                                    userRegistration && (
+                                        <p className="text-xs text-center text-muted-foreground">
+                                            Team: {userRegistration.teamName}
+                                        </p>
+                                    )}
+
+                                {event.status !== "running" && (
+                                    <p className="text-xs text-center text-muted-foreground">
+                                        Registration confirmation will be sent
+                                        to your email
+                                    </p>
+                                )}
                             </CardContent>
                         </Card>
 
@@ -521,6 +594,27 @@ export default function EventDetailPage() {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {canEditPage && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base">
+                                        Manage Event
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <Link href={`/events/${id}/teams`}>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full gap-2"
+                                        >
+                                            <Users className="w-4 h-4" />
+                                            View Registered Teams
+                                        </Button>
+                                    </Link>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 </div>
             </div>

@@ -358,6 +358,9 @@ export const attendanceTracking = pgTable("attendance_tracking", {
     teamId: uuid("team_id")
         .notNull()
         .references(() => team.id, { onDelete: "cascade" }),
+    memberId: uuid("member_id").references(() => teamMember.id, {
+        onDelete: "cascade",
+    }), // Optional: for per-member QR codes
     trackingType: text("tracking_type").notNull(), // 'attendance', 'food_coupon', 'custom'
     label: text("label").notNull(), // e.g., "Day 1 Attendance", "Lunch Coupon"
     qrCodeData: text("qr_code_data"), // Stored QR code data URL
@@ -395,6 +398,10 @@ export const attendanceTrackingRelations = relations(
         team: one(team, {
             fields: [attendanceTracking.teamId],
             references: [team.id],
+        }),
+        member: one(teamMember, {
+            fields: [attendanceTracking.memberId],
+            references: [teamMember.id],
         }),
         scannedByUser: one(user, {
             fields: [attendanceTracking.scannedBy],

@@ -97,27 +97,24 @@ export function DateTimePicker({
 
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
-            <PopoverTrigger
-                render={(props) => (
-                    <Button
-                        {...props}
-                        variant="outline"
-                        className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !selectedDateTime && "text-muted-foreground",
-                            className,
-                        )}
-                        disabled={disabled}
-                    >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDateTime ? (
-                            format(selectedDateTime, "PPP 'at' HH:mm")
-                        ) : (
-                            <span>{placeholder}</span>
-                        )}
-                    </Button>
-                )}
-            />
+            <PopoverTrigger>
+                <Button
+                    variant="outline"
+                    className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !selectedDateTime && "text-muted-foreground",
+                        className,
+                    )}
+                    disabled={disabled}
+                >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDateTime ? (
+                        format(selectedDateTime, "PPP 'at' HH:mm")
+                    ) : (
+                        <span>{placeholder}</span>
+                    )}
+                </Button>
+            </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
                 <div className="flex flex-col sm:flex-row">
                     <Calendar

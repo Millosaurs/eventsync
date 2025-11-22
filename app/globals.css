@@ -204,3 +204,183 @@
 .animate-float-reverse {
     animation: float 15s ease-in-out infinite reverse;
 }
+
+/* Calendar custom styling fixes */
+.rdp {
+    --rdp-accent-color: hsl(var(--primary));
+    --rdp-background-color: hsl(var(--primary) / 0.1);
+    margin: 0;
+}
+
+.rdp-root {
+    padding: 0.75rem;
+}
+
+.rdp-months {
+    width: 100%;
+}
+
+.rdp-month {
+    width: 100%;
+}
+
+.rdp-caption {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    padding: 0.5rem 0 0.75rem 0;
+}
+
+.rdp-caption_label {
+    color: hsl(var(--foreground));
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.rdp-nav {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.rdp-button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.rdp-nav_button {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: calc(var(--radius) - 2px);
+    color: hsl(var(--foreground));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+    opacity: 0.5;
+}
+
+.rdp-nav_button:hover {
+    background-color: hsl(var(--accent));
+    opacity: 1;
+}
+
+.rdp-nav_button_previous {
+    position: absolute;
+    left: 0.25rem;
+}
+
+.rdp-nav_button_next {
+    position: absolute;
+    right: 0.25rem;
+}
+
+.rdp-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rdp-head_row {
+    display: flex;
+    width: 100%;
+}
+
+.rdp-head_cell {
+    flex: 1;
+    color: hsl(var(--muted-foreground));
+    font-weight: 500;
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 0.5rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rdp-tbody {
+    width: 100%;
+}
+
+.rdp-row {
+    display: flex;
+    width: 100%;
+    margin-top: 0.125rem;
+}
+
+.rdp-cell {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    text-align: center;
+    padding: 0.125rem;
+}
+
+.rdp-day {
+    width: 100%;
+    aspect-ratio: 1;
+    max-width: 2.25rem;
+    max-height: 2.25rem;
+    border-radius: calc(var(--radius) - 2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: hsl(var(--foreground));
+}
+
+.rdp-day:hover:not([disabled]):not(.rdp-day_selected) {
+    background-color: hsl(var(--accent));
+}
+
+.rdp-day_selected {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    font-weight: 600;
+}
+
+.rdp-day_selected:hover {
+    background-color: hsl(var(--primary)) !important;
+    opacity: 0.9;
+}
+
+.rdp-day_today:not(.rdp-day_selected) {
+    background-color: hsl(var(--accent));
+    font-weight: 600;
+}
+
+.rdp-day:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.rdp-day_outside {
+    opacity: 0.5;
+}
+
+.rdp-day_range_start,
+.rdp-day_range_end {
+    background-color: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+}
+
+.rdp-day_range_middle {
+    background-color: hsl(var(--primary) / 0.1);
+}
+
+/* Dark mode adjustments */
+.dark .rdp-day_today:not(.rdp-day_selected) {
+    background-color: hsl(var(--accent));
+}
+
+.dark .rdp-day:hover:not([disabled]):not(.rdp-day_selected) {
+    background-color: hsl(var(--accent) / 0.8);
+}button.rdp-day_range_middle {
+    background-color: hsl(var(--primary) / 0.2);
+}

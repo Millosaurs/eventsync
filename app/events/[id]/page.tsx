@@ -17,11 +17,12 @@ import {
     Edit,
     Loader2,
     ExternalLink,
+    QrCode,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { PageDesignStorage } from "@/lib/utils/page-design-storage";
-import { PageDesign, PageBlock } from "@/lib/types/page-builder";
+import { PageDesign } from "@/lib/types/page-builder";
 import BlockRenderer from "@/components/page-builder/block-renderer";
 import { useSession } from "@/lib/auth-client";
 
@@ -42,18 +43,6 @@ interface EventData {
     teamId: string | null;
     createdAt: string;
     updatedAt: string;
-}
-
-interface UserRegistrationData {
-    id: string;
-    event: {
-        id: string;
-        title: string;
-    };
-    team: {
-        id: string;
-        name: string;
-    };
 }
 
 interface ApiResponse {
@@ -123,7 +112,7 @@ export default function EventDetailPage() {
 
             if (data.success && data.data.registrations) {
                 const registration = data.data.registrations.find(
-                    (reg: any) => reg.event.id === id,
+                    (reg: { event: { id: string } }) => reg.event.id === id,
                 );
 
                 if (registration) {
@@ -170,6 +159,10 @@ export default function EventDetailPage() {
     const canEditPage =
         session?.user &&
         (session.user.role === "admin" || session.user.role === "manager");
+
+    // Check if user is the event manager
+    const isEventManager =
+        session?.user && event?.managerId === session.user.id;
 
     if (loading) {
         return (
@@ -246,9 +239,19 @@ export default function EventDetailPage() {
                                             : event.status}
                                     </Badge>
                                 </div>
-                                <Button variant="outline" size="icon">
-                                    <Share2 className="w-4 h-4" />
-                                </Button>
+                                <div className="flex gap-2">
+                                    {isEventManager && (
+                                        <Link href={`/events/${id}/scanner`}>
+                                            <Button variant="default" size="sm">
+                                                <QrCode className="w-4 h-4 mr-2" />
+                                                QR Scanner
+                                            </Button>
+                                        </Link>
+                                    )}
+                                    <Button variant="outline" size="icon">
+                                        <Share2 className="w-4 h-4" />
+                                    </Button>
+                                </div>
                             </div>
 
                             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">

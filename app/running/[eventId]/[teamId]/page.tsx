@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Calendar,
     MapPin,
@@ -15,9 +16,14 @@ import {
     ArrowLeft,
     Loader2,
     MessageSquare,
+    ShieldAlert,
+    ChevronLeft,
+    ChevronRight,
+    User,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSession } from "@/lib/auth-client";
 
 interface EventData {
     id: string;
@@ -43,6 +49,7 @@ interface TeamData {
         email: string;
         role: string;
         status: string;
+        userId?: string;
     }>;
 }
 
@@ -69,12 +76,15 @@ interface QRCodeData {
     qrCodeUrl: string;
     isScanned: boolean;
     scannedAt: string | null;
+    memberId: string | null;
+    memberName: string | null;
 }
 
 export default function RunningEventPage() {
     const params = useParams();
     const eventId = params.eventId as string;
     const teamId = params.teamId as string;
+    const { data: session } = useSession();
 
     const [event, setEvent] = useState<EventData | null>(null);
     const [team, setTeam] = useState<TeamData | null>(null);
@@ -85,12 +95,17 @@ export default function RunningEventPage() {
     const [qrCodes, setQRCodes] = useState<QRCodeData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [accessDenied, setAccessDenied] = useState(false);
+    const [generatingQR, setGeneratingQR] = useState(false);
+    const [currentQRIndex, setCurrentQRIndex] = useState(0);
+    const [selectedMember, setSelectedMember] = useState<string>("all");
 
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
                 setError(null);
+                setAccessDenied(false);
 
                 // Fetch event data
                 const eventResponse = await fetch(`/api/events/${eventId}`);
@@ -109,6 +124,21 @@ export default function RunningEventPage() {
                     throw new Error(teamData.message || "Failed to load team");
                 }
                 setTeam(teamData.data);
+
+                // Check if user is a member of this team
+                if (session?.user) {
+                    const isMember = teamData.data.members.some(
+                        (member: { email: string; status: string }) =>
+                            member.email === session.user.email &&
+                            member.status === "accepted",
+                    );
+
+                    if (!isMember) {
+                        setAccessDenied(true);
+                        setLoading(false);
+                        return;
+                    }
+                }
 
                 // Fetch registration data
                 const regResponse = await fetch(
@@ -135,6 +165,11 @@ export default function RunningEventPage() {
                 const qrData = await qrResponse.json();
                 if (qrData.success) {
                     setQRCodes(qrData.data);
+
+                    // If no QR codes exist, automatically generate them
+                    if (qrData.data.length === 0) {
+                        await generateQRCodes();
+                    }
                 }
             } catch (err) {
                 console.error("Error loading data:", err);
@@ -149,7 +184,48 @@ export default function RunningEventPage() {
         if (eventId && teamId) {
             loadData();
         }
-    }, [eventId, teamId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [eventId, teamId, session]);
+
+    const generateQRCodes = async () => {
+        try {
+            setGeneratingQR(true);
+
+            const response = await fetch(
+                `/api/events/${eventId}/team/${teamId}/generate-qrcodes`,
+                {
+                    method: "POST",
+                },
+            );
+
+            const data = await response.json();
+
+            if (data.success) {
+                // Reload QR codes
+                const qrResponse = await fetch(
+                    `/api/events/${eventId}/team/${teamId}/qrcodes`,
+                );
+                const qrData = await qrResponse.json();
+                if (qrData.success) {
+                    setQRCodes(qrData.data);
+                }
+            }
+        } catch (error) {
+            console.error("Error generating QR codes:", error);
+        } finally {
+            setGeneratingQR(false);
+        }
+    };
+
+    const nextQR = () => {
+        setCurrentQRIndex((prev) => (prev + 1) % qrCodes.length);
+    };
+
+    const previousQR = () => {
+        setCurrentQRIndex(
+            (prev) => (prev - 1 + qrCodes.length) % qrCodes.length,
+        );
+    };
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -189,16 +265,80 @@ export default function RunningEventPage() {
     const downloadQRCode = (qrCodeUrl: string, label: string) => {
         const link = document.createElement("a");
         link.href = qrCodeUrl;
-        link.download = `${label.replace(/\s+/g, "_")}_QR.png`;
+        link.download = `${label.replace(/\s+/g, "_")}.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     };
 
+    // Filter QR codes based on selected member
+    const filteredQRCodes = qrCodes.filter((qr) => {
+        if (selectedMember === "all") return true;
+        if (selectedMember === "me" && session?.user?.email) {
+            // Find if current user is a member
+            const currentMember = team?.members.find(
+                (m) =>
+                    m.email === session.user.email && m.status === "accepted",
+            );
+            return currentMember ? qr.memberId === currentMember.id : false;
+        }
+        return qr.memberId === selectedMember;
+    });
+
+    // Get unique members who have QR codes
+    const membersWithQRs = Array.from(
+        new Set(qrCodes.filter((qr) => qr.memberId).map((qr) => qr.memberId)),
+    )
+        .map((memberId) => {
+            const qr = qrCodes.find((q) => q.memberId === memberId);
+            return {
+                id: memberId!,
+                name: qr?.memberName || "Unknown",
+            };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    // Check if current user is a team member
+    const currentUserMember = team?.members.find(
+        (m) => m.email === session?.user?.email && m.status === "accepted",
+    );
+
     if (loading) {
         return (
             <div className="min-h-screen bg-muted/30 flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (accessDenied) {
+        return (
+            <div className="min-h-screen bg-muted/30">
+                <div className="container mx-auto px-4 py-8">
+                    <Link href="/dashboard">
+                        <Button variant="ghost" className="gap-2 mb-4">
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Dashboard
+                        </Button>
+                    </Link>
+                    <Card className="max-w-2xl mx-auto">
+                        <CardContent className="pt-6">
+                            <div className="text-center">
+                                <ShieldAlert className="h-12 w-12 text-destructive mx-auto mb-4" />
+                                <p className="text-lg font-semibold mb-2">
+                                    Access Denied
+                                </p>
+                                <p className="text-muted-foreground mb-4">
+                                    You are not a member of this team. Only team
+                                    members can access this event portal.
+                                </p>
+                                <Link href="/dashboard">
+                                    <Button>Go to Dashboard</Button>
+                                </Link>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         );
     }
@@ -408,67 +548,166 @@ export default function RunningEventPage() {
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-3">
-                                    {team.members.map((member) => (
-                                        <div
-                                            key={member.id}
-                                            className="flex items-center justify-between"
-                                        >
-                                            <div>
-                                                <p className="font-medium text-sm">
-                                                    {member.name}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {member.email}
-                                                </p>
-                                            </div>
-                                            <Badge
-                                                variant={
-                                                    member.role === "leader"
-                                                        ? "default"
-                                                        : "secondary"
-                                                }
+                                    {team.members
+                                        .filter(
+                                            (member) =>
+                                                member.status === "accepted",
+                                        )
+                                        .map((member) => (
+                                            <div
+                                                key={member.id}
+                                                className="flex items-center justify-between"
                                             >
-                                                {member.role}
-                                            </Badge>
-                                        </div>
-                                    ))}
+                                                <div>
+                                                    <p className="font-medium text-sm">
+                                                        {member.name}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {member.email}
+                                                    </p>
+                                                </div>
+                                                <Badge
+                                                    variant={
+                                                        member.role === "leader"
+                                                            ? "default"
+                                                            : "secondary"
+                                                    }
+                                                >
+                                                    {member.role}
+                                                </Badge>
+                                            </div>
+                                        ))}
                                 </div>
                             </CardContent>
                         </Card>
 
-                        {/* QR Codes */}
+                        {/* QR Codes with Member Tabs */}
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <QrCode className="w-5 h-5" />
-                                    Team QR Codes
+                                    QR Codes
+                                    {filteredQRCodes.length > 0 && (
+                                        <Badge
+                                            variant="secondary"
+                                            className="ml-auto"
+                                        >
+                                            {currentQRIndex + 1} /{" "}
+                                            {filteredQRCodes.length}
+                                        </Badge>
+                                    )}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {qrCodes.length === 0 ? (
-                                    <p className="text-center text-muted-foreground py-8 text-sm">
-                                        No QR codes available
-                                    </p>
+                                {/* Member Filter Tabs */}
+                                {qrCodes.length > 0 &&
+                                    (membersWithQRs.length > 0 ||
+                                        currentUserMember) && (
+                                        <Tabs
+                                            value={selectedMember}
+                                            onValueChange={(value) => {
+                                                setSelectedMember(value);
+                                                setCurrentQRIndex(0);
+                                            }}
+                                            className="mb-4"
+                                        >
+                                            <TabsList className="grid w-full grid-cols-3">
+                                                <TabsTrigger value="all">
+                                                    <Users className="w-4 h-4 mr-2" />
+                                                    All Team
+                                                </TabsTrigger>
+                                                {currentUserMember && (
+                                                    <TabsTrigger value="me">
+                                                        <User className="w-4 h-4 mr-2" />
+                                                        My QR Codes
+                                                    </TabsTrigger>
+                                                )}
+                                                {membersWithQRs.length > 0 &&
+                                                    membersWithQRs.length <=
+                                                        5 &&
+                                                    membersWithQRs.map(
+                                                        (member) => (
+                                                            <TabsTrigger
+                                                                key={member.id}
+                                                                value={
+                                                                    member.id
+                                                                }
+                                                            >
+                                                                {member.name}
+                                                            </TabsTrigger>
+                                                        ),
+                                                    )}
+                                            </TabsList>
+                                        </Tabs>
+                                    )}
+                                {/* QR Code Display */}
+                                {generatingQR ? (
+                                    <div className="flex flex-col items-center justify-center py-12">
+                                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                                        <p className="text-sm text-muted-foreground">
+                                            Generating QR codes...
+                                        </p>
+                                    </div>
+                                ) : filteredQRCodes.length === 0 &&
+                                  qrCodes.length === 0 ? (
+                                    <div className="text-center py-12">
+                                        <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            No QR codes available yet
+                                        </p>
+                                        <Button
+                                            onClick={generateQRCodes}
+                                            size="sm"
+                                        >
+                                            Generate QR Codes
+                                        </Button>
+                                    </div>
+                                ) : filteredQRCodes.length === 0 ? (
+                                    <div className="text-center py-8">
+                                        <QrCode className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                        <p className="text-sm text-muted-foreground">
+                                            No QR codes available for this
+                                            selection
+                                        </p>
+                                    </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {qrCodes.map((qr) => (
-                                            <div
-                                                key={qr.id}
-                                                className="border rounded-lg p-4 space-y-3"
-                                            >
+                                        {/* Carousel */}
+                                        <div className="relative">
+                                            <div className="border rounded-lg p-6 space-y-4">
                                                 <div className="flex items-start justify-between">
                                                     <div>
-                                                        <p className="font-semibold text-sm">
-                                                            {qr.label}
+                                                        <p className="font-semibold text-lg">
+                                                            {
+                                                                filteredQRCodes[
+                                                                    currentQRIndex
+                                                                ].label
+                                                            }
                                                         </p>
-                                                        <p className="text-xs text-muted-foreground capitalize">
-                                                            {qr.trackingType.replace(
+                                                        <p className="text-sm text-muted-foreground capitalize">
+                                                            {filteredQRCodes[
+                                                                currentQRIndex
+                                                            ].trackingType.replace(
                                                                 "_",
                                                                 " ",
                                                             )}
                                                         </p>
+                                                        {filteredQRCodes[
+                                                            currentQRIndex
+                                                        ].memberName && (
+                                                            <p className="text-xs text-muted-foreground mt-1">
+                                                                For:{" "}
+                                                                {
+                                                                    filteredQRCodes[
+                                                                        currentQRIndex
+                                                                    ].memberName
+                                                                }
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                    {qr.isScanned && (
+                                                    {filteredQRCodes[
+                                                        currentQRIndex
+                                                    ].isScanned && (
                                                         <Badge
                                                             variant="secondary"
                                                             className="bg-green-500 text-white"
@@ -478,22 +717,50 @@ export default function RunningEventPage() {
                                                     )}
                                                 </div>
 
-                                                <div className="bg-white p-4 rounded-lg">
+                                                <div className="bg-white p-6 rounded-lg flex items-center justify-center relative">
                                                     <Image
-                                                        src={qr.qrCodeUrl}
-                                                        alt={qr.label}
-                                                        width={200}
-                                                        height={200}
-                                                        className="w-full h-auto"
+                                                        src={
+                                                            filteredQRCodes[
+                                                                currentQRIndex
+                                                            ].qrCodeUrl
+                                                        }
+                                                        alt={
+                                                            filteredQRCodes[
+                                                                currentQRIndex
+                                                            ].label
+                                                        }
+                                                        width={250}
+                                                        height={250}
+                                                        className={`w-full max-w-[250px] h-auto ${
+                                                            filteredQRCodes[
+                                                                currentQRIndex
+                                                            ].isScanned
+                                                                ? "blur-md"
+                                                                : ""
+                                                        }`}
                                                     />
+                                                    {filteredQRCodes[
+                                                        currentQRIndex
+                                                    ].isScanned && (
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <div className="bg-red-500 text-white px-6 py-3 rounded-lg font-bold text-2xl shadow-lg border-4 border-red-600 transform -rotate-12">
+                                                                EXPIRED
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {qr.isScanned &&
-                                                    qr.scannedAt && (
+                                                {filteredQRCodes[currentQRIndex]
+                                                    .isScanned &&
+                                                    filteredQRCodes[
+                                                        currentQRIndex
+                                                    ].scannedAt && (
                                                         <p className="text-xs text-muted-foreground text-center">
                                                             Scanned at:{" "}
                                                             {formatDateTime(
-                                                                qr.scannedAt,
+                                                                filteredQRCodes[
+                                                                    currentQRIndex
+                                                                ].scannedAt!,
                                                             )}
                                                         </p>
                                                     )}
@@ -504,15 +771,65 @@ export default function RunningEventPage() {
                                                     className="w-full"
                                                     onClick={() =>
                                                         downloadQRCode(
-                                                            qr.qrCodeUrl,
-                                                            qr.label,
+                                                            filteredQRCodes[
+                                                                currentQRIndex
+                                                            ].qrCodeUrl,
+                                                            filteredQRCodes[
+                                                                currentQRIndex
+                                                            ].label,
                                                         )
                                                     }
                                                 >
                                                     Download QR Code
                                                 </Button>
                                             </div>
-                                        ))}
+
+                                            {/* Navigation Arrows */}
+                                            {filteredQRCodes.length > 1 && (
+                                                <>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2"
+                                                        onClick={previousQR}
+                                                    >
+                                                        <ChevronLeft className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2"
+                                                        onClick={nextQR}
+                                                    >
+                                                        <ChevronRight className="h-4 w-4" />
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* Dots Indicator */}
+                                        {filteredQRCodes.length > 1 && (
+                                            <div className="flex justify-center gap-2 pt-2">
+                                                {filteredQRCodes.map(
+                                                    (_, index) => (
+                                                        <button
+                                                            key={index}
+                                                            onClick={() =>
+                                                                setCurrentQRIndex(
+                                                                    index,
+                                                                )
+                                                            }
+                                                            className={`h-2 rounded-full transition-all ${
+                                                                index ===
+                                                                currentQRIndex
+                                                                    ? "w-8 bg-primary"
+                                                                    : "w-2 bg-muted-foreground/30"
+                                                            }`}
+                                                        />
+                                                    ),
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>

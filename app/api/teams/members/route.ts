@@ -138,9 +138,9 @@ export async function POST(request: NextRequest) {
                 name: name.trim(),
                 userId: userId,
                 role: role === "leader" ? "leader" : "member",
-                status: existingUser ? "pending" : "accepted",
+                status: "accepted",
                 invitedAt: new Date().toISOString(),
-                joinedAt: existingUser ? null : new Date().toISOString(),
+                joinedAt: new Date().toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             })

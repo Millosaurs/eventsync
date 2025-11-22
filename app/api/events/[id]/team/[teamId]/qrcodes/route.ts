@@ -5,9 +5,12 @@ import {
     registration,
     event,
     team,
+    teamMember,
 } from "@/db/schema/schema";
 import { eq, and } from "drizzle-orm";
 import QRCode from "qrcode";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 // GET /api/events/[id]/team/[teamId]/qrcodes - Get QR codes for a team
 export async function GET(
@@ -16,6 +19,46 @@ export async function GET(
 ) {
     try {
         const { id: eventId, teamId } = await params;
+
+        // Get session to verify team membership
+        const session = await auth.api.getSession({
+            headers: await headers(),
+        });
+
+        // Verify user is logged in
+        if (!session?.user) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: "Authentication required",
+                },
+                { status: 401 },
+            );
+        }
+
+        // Verify user is a member of this team
+        const memberCheck = await db
+            .select()
+            .from(teamMember)
+            .where(
+                and(
+                    eq(teamMember.teamId, teamId),
+                    eq(teamMember.email, session.user.email),
+                    eq(teamMember.status, "accepted"),
+                ),
+            )
+            .limit(1);
+
+        if (memberCheck.length === 0) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message:
+                        "Access denied. You are not a member of this team.",
+                },
+                { status: 403 },
+            );
+        }
 
         // Verify registration exists
         const registrationData = await db
@@ -39,10 +82,23 @@ export async function GET(
             );
         }
 
-        // Fetch all tracking records for this team and event
+        // Fetch all tracking records for this team and event with member info
         const trackingRecords = await db
-            .select()
+            .select({
+                id: attendanceTracking.id,
+                label: attendanceTracking.label,
+                trackingType: attendanceTracking.trackingType,
+                qrCodeData: attendanceTracking.qrCodeData,
+                scannedAt: attendanceTracking.scannedAt,
+                scannedBy: attendanceTracking.scannedBy,
+                memberId: attendanceTracking.memberId,
+                memberName: teamMember.name,
+            })
             .from(attendanceTracking)
+            .leftJoin(
+                teamMember,
+                eq(attendanceTracking.memberId, teamMember.id),
+            )
             .where(
                 and(
                     eq(attendanceTracking.eventId, eventId),
@@ -87,6 +143,8 @@ export async function GET(
                     isScanned: record.scannedAt !== null,
                     scannedAt: record.scannedAt,
                     scannedBy: record.scannedBy,
+                    memberId: record.memberId,
+                    memberName: record.memberName,
                 };
             }),
         );
@@ -115,6 +173,46 @@ export async function POST(
 ) {
     try {
         const { id: eventId, teamId } = await params;
+
+        // Get session to verify team membership
+        const session = await auth.api.getSession({
+            headers: await headers(),
+        });
+
+        // Verify user is logged in
+        if (!session?.user) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: "Authentication required",
+                },
+                { status: 401 },
+            );
+        }
+
+        // Verify user is a member of this team
+        const memberCheck = await db
+            .select()
+            .from(teamMember)
+            .where(
+                and(
+                    eq(teamMember.teamId, teamId),
+                    eq(teamMember.email, session.user.email),
+                    eq(teamMember.status, "accepted"),
+                ),
+            )
+            .limit(1);
+
+        if (memberCheck.length === 0) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message:
+                        "Access denied. You are not a member of this team.",
+                },
+                { status: 403 },
+            );
+        }
 
         // Verify registration exists
         const registrationData = await db

@@ -43,6 +43,7 @@ export default function QRScannerPage() {
     const params = useParams();
     const router = useRouter();
     const eventId = params.id as string;
+    const { data: session, isPending } = useSession();
 
     const [event, setEvent] = useState<EventData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -59,25 +60,43 @@ export default function QRScannerPage() {
     const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
-        loadEvent();
+        if (!isPending && eventId) {
+            loadEvent();
+        }
         return () => {
             stopCamera();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [eventId]);
+    }, [eventId, isPending]);
 
     const loadEvent = async () => {
         try {
+            setLoading(true);
+            console.log("Loading event:", eventId);
             const response = await fetch(`/api/events/${eventId}`);
+            console.log("Response status:", response.ok);
+
             if (!response.ok) {
-                throw new Error("Failed to load event");
+                throw new Error(`Failed to load event: ${response.status}`);
             }
+
             const data = await response.json();
-            setEvent(data);
+            console.log("Event data:", data);
+
+            if (data.success && data.data) {
+                setEvent(data.data);
+            } else {
+                throw new Error(data.message || "Failed to load event");
+            }
         } catch (error) {
             console.error("Error loading event:", error);
-            setError("Failed to load event details");
+            setError(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to load event details",
+            );
         } finally {
+            console.log("Setting loading to false");
             setLoading(false);
         }
     };
@@ -85,6 +104,7 @@ export default function QRScannerPage() {
     const startCamera = async () => {
         try {
             setError("");
+            setCameraActive(false);
             console.log("Starting camera...");
 
             // Check if getUserMedia is supported
@@ -99,14 +119,62 @@ export default function QRScannerPage() {
             stopCamera();
 
             console.log("Requesting camera access...");
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                },
-                audio: false,
-            });
+
+            let stream: MediaStream | null = null;
+
+            // Try with ideal constraints first
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: "environment" },
+                        width: { ideal: 1280, max: 1920 },
+                        height: { ideal: 720, max: 1080 },
+                    },
+                    audio: false,
+                };
+
+                const streamPromise =
+                    navigator.mediaDevices.getUserMedia(constraints);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(
+                        () =>
+                            reject(new Error("Camera initialization timeout")),
+                        15000,
+                    ),
+                );
+
+                stream = (await Promise.race([
+                    streamPromise,
+                    timeoutPromise,
+                ])) as MediaStream;
+            } catch (err) {
+                console.warn(
+                    "Failed with ideal constraints, trying basic constraints:",
+                    err,
+                );
+                // Fallback to basic constraints for mobile
+                try {
+                    const basicConstraints = {
+                        video: { facingMode: "environment" },
+                        audio: false,
+                    };
+                    stream =
+                        await navigator.mediaDevices.getUserMedia(
+                            basicConstraints,
+                        );
+                } catch (basicErr) {
+                    console.error("Failed with basic constraints:", basicErr);
+                    // Last resort - try any video
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: true,
+                        audio: false,
+                    });
+                }
+            }
+
+            if (!stream || !stream.active) {
+                throw new Error("Camera stream is not active");
+            }
 
             console.log("Camera stream obtained:", stream.active);
             streamRef.current = stream;
@@ -115,24 +183,37 @@ export default function QRScannerPage() {
                 console.log("Setting video source...");
                 videoRef.current.srcObject = stream;
 
-                // Wait for video to be ready
-                videoRef.current.onloadedmetadata = () => {
-                    console.log("Video metadata loaded");
-                    console.log(
-                        "Video dimensions:",
-                        videoRef.current?.videoWidth,
-                        "x",
-                        videoRef.current?.videoHeight,
-                    );
-                };
+                // Wait for video to be ready with timeout
+                await Promise.race([
+                    new Promise<void>((resolve, reject) => {
+                        if (!videoRef.current) {
+                            reject(new Error("Video element not found"));
+                            return;
+                        }
 
-                videoRef.current.onloadeddata = () => {
-                    console.log("Video data loaded");
-                };
+                        videoRef.current.onloadedmetadata = () => {
+                            console.log("Video metadata loaded");
+                            console.log(
+                                "Video dimensions:",
+                                videoRef.current?.videoWidth,
+                                "x",
+                                videoRef.current?.videoHeight,
+                            );
+                            resolve();
+                        };
 
-                videoRef.current.onerror = (e) => {
-                    console.error("Video element error:", e);
-                };
+                        videoRef.current.onerror = (e) => {
+                            console.error("Video element error:", e);
+                            reject(new Error("Video element error"));
+                        };
+                    }),
+                    new Promise<void>((_, reject) =>
+                        setTimeout(
+                            () => reject(new Error("Video loading timeout")),
+                            10000,
+                        ),
+                    ),
+                ]);
 
                 // Try to play
                 try {
@@ -140,6 +221,7 @@ export default function QRScannerPage() {
                     console.log("Video playing successfully");
                 } catch (playError) {
                     console.error("Error playing video:", playError);
+                    // On mobile, play might fail initially, try again after interaction
                     throw playError;
                 }
             }
@@ -148,10 +230,15 @@ export default function QRScannerPage() {
 
             // Start scanning after a short delay to ensure video is rendering
             setTimeout(() => {
-                startScanning();
-            }, 500);
+                if (streamRef.current && streamRef.current.active) {
+                    startScanning();
+                } else {
+                    setError("Camera stream became inactive");
+                }
+            }, 1000);
         } catch (err) {
             console.error("Error accessing camera:", err);
+            stopCamera(); // Clean up on error
             const errorMessage =
                 err instanceof Error ? err.message : "Unknown error";
             if (
@@ -164,6 +251,10 @@ export default function QRScannerPage() {
             } else if (errorMessage.includes("not supported")) {
                 setError(
                     "Camera is not supported. Please use HTTPS or localhost, or try manual entry.",
+                );
+            } else if (errorMessage.includes("timeout")) {
+                setError(
+                    "Camera initialization timed out. Please try again or use manual entry.",
                 );
             } else {
                 setError(
@@ -304,10 +395,36 @@ export default function QRScannerPage() {
         setError("");
     };
 
-    if (loading) {
+    if (isPending || loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center flex-col gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">
+                    {isPending ? "Loading session..." : "Loading event..."}
+                </p>
+            </div>
+        );
+    }
+
+    if (!session?.user) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Card className="w-full max-w-md">
+                    <CardContent className="pt-6">
+                        <div className="text-center">
+                            <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+                            <h2 className="text-xl font-semibold mb-2">
+                                Authentication Required
+                            </h2>
+                            <p className="text-muted-foreground mb-4">
+                                Please sign in to access the QR scanner.
+                            </p>
+                            <Button onClick={() => router.push("/auth")}>
+                                Sign In
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         );
     }

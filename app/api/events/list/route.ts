@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
-import { desc, asc, eq, and, or, gte, lte, like, sql } from "drizzle-orm";
+import { desc, asc, eq, and, or, gte, like, sql } from "drizzle-orm";
 
 /**
  * GET /api/events/list

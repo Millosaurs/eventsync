@@ -7,7 +7,7 @@ import { headers } from "next/headers";
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } },
+    { params }: { params: Promise<{ id: string }> },
 ) {
     try {
         const session = await auth.api.getSession({
@@ -21,7 +21,7 @@ export async function POST(
             );
         }
 
-        const eventId = params.id;
+        const { id: eventId } = await params;
         const { qrData } = await req.json();
 
         if (!qrData) {

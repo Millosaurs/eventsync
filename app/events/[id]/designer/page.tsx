@@ -150,13 +150,8 @@ export default function PageDesignerWithEvent() {
     const router = useRouter();
     const eventId = params.id as string;
     const { data: session, isPending } = useSession();
-    const [blocks, setBlocks] = useState<PageBlock[]>(() => {
-        if (typeof window !== "undefined" && eventId) {
-            const savedDesign = PageDesignStorage.loadDesign(eventId);
-            return savedDesign ? savedDesign.blocks : [];
-        }
-        return [];
-    });
+    const [blocks, setBlocks] = useState<PageBlock[]>([]);
+    const [isLoadingDesign, setIsLoadingDesign] = useState(true);
     const [selectedBlock, setSelectedBlock] = useState<PageBlock | null>(null);
     const [activeTab, setActiveTab] = useState<"editor" | "preview">("editor");
 
@@ -166,6 +161,30 @@ export default function PageDesignerWithEvent() {
             coordinateGetter: sortableKeyboardCoordinates,
         }),
     );
+
+    // Load design from database on mount
+    useEffect(() => {
+        const loadDesign = async () => {
+            if (typeof window !== "undefined" && eventId) {
+                setIsLoadingDesign(true);
+                try {
+                    const savedDesign =
+                        await PageDesignStorage.loadDesign(eventId);
+                    if (savedDesign && savedDesign.blocks) {
+                        setBlocks(savedDesign.blocks);
+                    }
+                } catch (error) {
+                    console.error("Failed to load design:", error);
+                } finally {
+                    setIsLoadingDesign(false);
+                }
+            } else {
+                setIsLoadingDesign(false);
+            }
+        };
+
+        loadDesign();
+    }, [eventId]);
 
     // Check permissions - allow managers and admins (using useMemo to avoid setState in effect)
     const isAuthorized = useMemo(() => {
@@ -415,7 +434,7 @@ export default function PageDesignerWithEvent() {
         }
     };
 
-    const saveDesign = () => {
+    const saveDesign = async () => {
         const design: PageDesign = {
             version: "1.0.0",
             blocks,
@@ -423,8 +442,13 @@ export default function PageDesignerWithEvent() {
             updatedAt: new Date().toISOString(),
         };
 
-        PageDesignStorage.saveDesign(eventId, design);
-        alert("Design saved successfully!");
+        try {
+            await PageDesignStorage.saveDesign(eventId, design);
+            alert("Design saved successfully to database!");
+        } catch (error) {
+            console.error("Failed to save design:", error);
+            alert("Failed to save design. Please try again.");
+        }
     };
 
     const blockTypes: {
@@ -473,6 +497,20 @@ export default function PageDesignerWithEvent() {
             label: "Divider",
         },
     ];
+
+    // Show loading state while design is being loaded
+    if (isLoadingDesign) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+                    <p className="text-muted-foreground">
+                        Loading page design...
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background">
